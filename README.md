@@ -1,13 +1,27 @@
-# SSAIREN (싸이렌)
+# SSAIREN - Frontend(Flutter)
 
 > 실시간 보이스피싱 탐지 AI 앱
 
 <br>
 
-## 프로젝트 소개
+## 디렉토리 구조
 
-SSAIREN은 노인을 대상으로 한 보이스피싱을 실시간으로 탐지하고 자동으로 대응하는 Android 앱입니다.  
-통화 중 마이크 음성을 5초 단위로 AI 서버에 전송해 위험도를 분석하며, 위험도가 임계값(0.8)을 초과하면 보호자에게 즉시 FCM 알림을 발송합니다.
+```
+Frontend/
+├── lib/
+│   ├── screens/              # 화면 UI
+│   │   ├── monitoring/       # 통화 중 위험도 모니터링, 트리거 확인, 결과
+│   │   ├── guardian/         # 보호자 알림 수신 화면
+│   │   └── settings/         # 보호자 지정 설정
+│   ├── services/             # 비즈니스 로직 (API, WebSocket, FCM, 오디오)
+│   ├── models/               # 서버 응답 데이터 모델
+│   └── main.dart             # 앱 진입점
+│
+├── android/                  # Android 네이티브 설정 (권한, 아이콘 등)
+├── test/                     # 테스트 코드
+├── pubspec.yaml              # 패키지 의존성 관리
+└── README.md
+```
 
 <br>
 
@@ -66,29 +80,4 @@ API_BASE_URL=http://서버IP:8080
 WS_URL=ws://서버IP:8080/ws/trigger
 ```
 
-### Firebase 설정
-
-1. Firebase 콘솔에서 Android 앱 등록
-2. `google-services.json` 을 `android/app/` 에 추가 (⚠️ Git 커밋 금지)
-
-<br>
-
-## 디렉토리 구조
-
-```
-Frontend/
-├── lib/
-│   ├── screens/              # 화면 UI
-│   │   ├── monitoring/       # 통화 중 위험도 모니터링, 트리거 확인, 결과
-│   │   ├── guardian/         # 보호자 알림 수신 화면
-│   │   └── settings/         # 보호자 지정 설정
-│   ├── services/             # 비즈니스 로직 (API, WebSocket, FCM, 오디오)
-│   ├── models/               # 서버 응답 데이터 모델
-│   └── main.dart             # 앱 진입점
-│
-├── android/                  # Android 네이티브 설정 (권한, 아이콘 등)
-├── test/                     # 테스트 코드
-├── pubspec.yaml              # 패키지 의존성 관리
-└── README.md
-```
 
