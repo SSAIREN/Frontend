@@ -27,11 +27,19 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
+flutter_export_environment.sh
+
+# Dart code generation outputs
+**/*.g.dart
+**/*.freezed.dart
+**/*.mocks.dart
+lib/generated/
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +51,24 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# iOS related (for future iOS support)
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/.symlinks/
+ios/Pods/
+ios/Podfile.lock
+
+# Environment / Secrets
+.env
+.env.*
+*.env
+google-services.json
+GoogleService-Info.plist
+
+# Git merge artifacts
+*.orig
+
+# macOS extended attributes
+**/.DS_Store
+**/Thumbs.db
