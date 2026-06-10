@@ -98,7 +98,7 @@ WS   /ws/trigger   실시간 위험도 스트림 수신
 | **Target** | Android (Galaxy S26 Ultra 기준, 412 × 917 dp) |
 | **HTTP** | Dio 5.x |
 | **WebSocket** | web_socket_channel 3.x |
-| **오디오 녹음** | record 6.0.0 (pubspec_overrides.yaml 고정) |
+| **오디오 녹음** | record 7.0.0 |
 | **알림** | Firebase Cloud Messaging (FCM) |
 | **위치** | geolocator 13.x |
 | **권한** | permission_handler 11.x |
