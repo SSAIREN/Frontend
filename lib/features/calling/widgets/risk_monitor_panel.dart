@@ -16,16 +16,16 @@ class RiskMonitorPanel extends StatelessWidget {
     final color = level.color;
 
     return Container(
-      height: 154,
+      height: 170,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.17),
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color, width: 1.3),
+        border: Border.all(color: color.withValues(alpha: 0.95), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.45),
-            blurRadius: 22,
-            spreadRadius: 2,
+            color: color.withValues(alpha: 0.25),
+            blurRadius: 20,
+            spreadRadius: 0,
           ),
         ],
       ),
@@ -68,49 +68,57 @@ class RiskMonitorPanel extends StatelessWidget {
           ),
           Positioned(
             left: 25,
-            top: 62,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '의심 상태: ${level.label}',
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+            top: 68,
+            child: SizedBox(
+              width: 184,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '의심 상태: ${level.label}',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '보이스피싱 확률',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 10),
+                  Text(
+                    '보이스피싱 확률',
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: Color(0xFFD7D9E8),
+                      fontSize: 21,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           Positioned(
-            right: 28,
-            top: 38,
+            right: 42,
+            top: 35,
             child: SizedBox.square(
-              dimension: 88,
+              dimension: 96,
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  CircularProgressIndicator(
-                    value: percent / 100,
-                    strokeWidth: 6,
-                    color: color,
-                    backgroundColor: Colors.white.withValues(alpha: 0.20),
+                  Positioned.fill(
+                    child: CircularProgressIndicator(
+                      value: percent / 100,
+                      strokeWidth: 6.8,
+                      color: color,
+                      backgroundColor: color.withValues(alpha: 0.12),
+                    ),
                   ),
                   Text(
                     '$percent%',
                     style: TextStyle(
                       color: color,
-                      fontSize: 21,
+                      fontSize: 23,
                       fontWeight: FontWeight.w900,
                     ),
                   ),

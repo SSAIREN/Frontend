@@ -1,13 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/calling/widgets/call_control_button.dart';
 import 'package:ssairen/features/calling/widgets/call_gradient_background.dart';
+import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
 import 'package:ssairen/features/calling/widgets/risk_monitor_panel.dart';
+import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
+import 'package:ssairen/models/risk_result.dart';
 
-class CallingScreen extends StatelessWidget {
+class CallingScreen extends StatefulWidget {
   const CallingScreen({super.key});
 
-  static const _mockRiskPercent = 12;
+  @override
+  State<CallingScreen> createState() => _CallingScreenState();
+}
+
+class _CallingScreenState extends State<CallingScreen> {
+  static const _mockRiskPercents = [12, 42, 72, 92];
+
+  int _riskIndex = 0;
+  bool _shownWarningSheet = false;
+  bool _shownDangerSheet = false;
+
+  int get _riskPercent => _mockRiskPercents[_riskIndex];
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +43,9 @@ class CallingScreen extends StatelessWidget {
                   const SizedBox(height: 38),
                   const _CallHeader(),
                   const SizedBox(height: 42),
-                  const RiskMonitorPanel(
-                    percent: CallingScreen._mockRiskPercent,
+                  GestureDetector(
+                    onTap: _nextRiskState,
+                    child: RiskMonitorPanel(percent: _riskPercent),
                   ),
                   const SizedBox(height: 28),
                   const _ControlGrid(),
@@ -43,6 +59,50 @@ class CallingScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _nextRiskState() {
+    setState(() {
+      _riskIndex = (_riskIndex + 1) % _mockRiskPercents.length;
+    });
+
+    final level = RiskLevel.fromPercent(_riskPercent);
+    if (level == RiskLevel.warning && !_shownWarningSheet) {
+      _shownWarningSheet = true;
+      _showSuspiciousSheet();
+    }
+    if (level == RiskLevel.danger && !_shownDangerSheet) {
+      _shownDangerSheet = true;
+      _showHarmfulSheet();
+    }
+  }
+
+  void _showSuspiciousSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      barrierColor: AppColors.overlayDim,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return SuspiciousBottomSheet(
+          percent: _riskPercent,
+          onEndCall: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pushNamed(RoutePaths.policeShare);
+          },
+        );
+      },
+    );
+  }
+
+  void _showHarmfulSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      barrierColor: AppColors.overlayDim,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => HarmfulBottomSheet(percent: _riskPercent),
     );
   }
 }
