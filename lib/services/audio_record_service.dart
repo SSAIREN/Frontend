@@ -1,0 +1,3 @@
+class AudioRecordService {
+  const AudioRecordService();
+}

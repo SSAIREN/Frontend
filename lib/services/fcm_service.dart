@@ -1,0 +1,3 @@
+class FcmService {
+  const FcmService();
+}

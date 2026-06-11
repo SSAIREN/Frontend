@@ -69,6 +69,9 @@ GoogleService-Info.plist
 # Git merge artifacts
 *.orig
 
+# Personal planning notes
+docs/galaxy_white_mode_update.md
+
 # macOS extended attributes
 **/.DS_Store
 **/Thumbs.db
