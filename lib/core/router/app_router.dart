@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/features/calling/presentation/calling_screen.dart';
+import 'package:ssairen/features/calling/presentation/recording_probe_screen.dart';
 import 'package:ssairen/features/contacts/presentation/contacts_screen.dart';
 import 'package:ssairen/features/dial/presentation/dial_screen.dart';
 import 'package:ssairen/features/harmful/presentation/harmful_dashboard_screen.dart';
@@ -30,6 +31,7 @@ abstract final class AppRouter {
       RoutePaths.contacts: (_) => const ContactsScreen(),
       RoutePaths.dial: (_) => const DialScreen(),
       RoutePaths.calling: (_) => const CallingScreen(),
+      RoutePaths.recordingProbe: (_) => const RecordingProbeScreen(),
       RoutePaths.policeShare: (_) => const PoliceShareScreen(),
       RoutePaths.receiptDone: (_) => const ReceiptDoneScreen(),
       RoutePaths.harmfulDashboard: (_) => const HarmfulDashboardScreen(),
