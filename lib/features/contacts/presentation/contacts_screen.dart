@@ -1,18 +1,185 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/theme/app_colors.dart';
+import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
-import 'package:ssairen/core/widgets/placeholder_screen.dart';
+import 'package:ssairen/features/contacts/widgets/contact_pill_card.dart';
+import 'package:ssairen/features/contacts/widgets/contact_section.dart';
+import 'package:ssairen/models/contact.dart';
 
 class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key});
 
+  // TODO: 기기 연락처 연동 후 실제 데이터로 교체
+  static const _contacts = [
+    Contact(name: '강민우', phoneNumber: '010-1111-2222'),
+    Contact(name: '고영진', phoneNumber: '010-2222-3333'),
+    Contact(name: '김학수 사장님', phoneNumber: '010-3333-4444'),
+    Contact(name: '김땡땡', phoneNumber: '010-4444-5555'),
+    Contact(name: '박땡땡', phoneNumber: '010-5555-6666'),
+    Contact(name: '이땡땡', phoneNumber: '010-6666-7777'),
+    Contact(name: '최땡땡', phoneNumber: '010-7777-8888'),
+  ];
+
+  static const _choseong = [
+    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',
+    'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+  ];
+
+  /// 쌍자음은 기본 자음 섹션에 합친다 (ㄲ → ㄱ).
+  static const _doubleToSingle = {
+    'ㄲ': 'ㄱ',
+    'ㄸ': 'ㄷ',
+    'ㅃ': 'ㅂ',
+    'ㅆ': 'ㅅ',
+    'ㅉ': 'ㅈ',
+  };
+
+  static String _initialOf(String name) {
+    final code = name.codeUnitAt(0);
+    // 한글 음절(가~힣)이면 초성 추출, 아니면 첫 글자 그대로
+    if (code < 0xAC00 || code > 0xD7A3) return name[0].toUpperCase();
+    final choseong = _choseong[(code - 0xAC00) ~/ 588];
+    return _doubleToSingle[choseong] ?? choseong;
+  }
+
+  static Map<String, List<Contact>> _groupByInitial(List<Contact> contacts) {
+    final grouped = <String, List<Contact>>{};
+    for (final contact in contacts) {
+      (grouped[_initialOf(contact.name)] ??= []).add(contact);
+    }
+    return grouped;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: PlaceholderScreen(
-        title: '전화',
-        description: '연락처 화면',
+    final sections = _groupByInitial(_contacts);
+
+    return Scaffold(
+      backgroundColor: AppColors.bgSecondary,
+      // 플로팅 하단 바 양옆으로 본문이 보이도록 확장
+      extendBody: true,
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screenPadding,
+            0,
+            AppSpacing.screenPadding,
+            // 플로팅 하단 바에 가리지 않도록 확보
+            120,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 72),
+              const Center(
+                child: Text(
+                  '전화',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                // TODO: 연락처 연동 후 실제 개수로 교체
+                '전화번호가 저장된 연락처 187개',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 30),
+              const _ActionIcons(showAdd: true),
+              const SizedBox(height: AppSpacing.xl),
+              const ContactPillCard(
+                label: '즐겨찾는 연락처 추가',
+                leadingColor: AppColors.warningButton,
+                leadingIcon: Icons.star,
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              const Padding(
+                padding: EdgeInsets.only(
+                  left: AppSpacing.sm,
+                  bottom: AppSpacing.sm,
+                ),
+                child: Text(
+                  '내 프로필',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const ContactPillCard(
+                label: '싸이렌',
+                leadingAsset: 'assets/main_logo.png',
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              const ContactPillCard(
+                label: '그룹',
+                leadingColor: AppColors.textMuted,
+                leadingIcon: Icons.group,
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              for (final entry in sections.entries) ...[
+                ContactSection(title: entry.key, contacts: entry.value),
+                const SizedBox(height: AppSpacing.xl),
+              ],
+            ],
+          ),
+        ),
       ),
-      bottomNavigationBar: AppBottomNav(currentTab: MainTab.contacts),
+      bottomNavigationBar: const AppBottomNav(currentTab: MainTab.contacts),
+    );
+  }
+}
+
+/// 우측 정렬된 액션 아이콘 묶음 (+, 검색, 더보기+알림 점).
+class _ActionIcons extends StatelessWidget {
+  const _ActionIcons({this.showAdd = false});
+
+  final bool showAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (showAdd) ...[
+          const Icon(Icons.add, size: 26, color: AppColors.textHeading),
+          const SizedBox(width: AppSpacing.xl),
+        ],
+        const Icon(Icons.search, size: 26, color: AppColors.textHeading),
+        const SizedBox(width: AppSpacing.xl),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(
+              Icons.more_vert,
+              size: 26,
+              color: AppColors.textHeading,
+            ),
+            Positioned(
+              top: -2,
+              right: -4,
+              child: Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: AppColors.alertOrange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
