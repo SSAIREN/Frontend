@@ -36,4 +36,17 @@ abstract final class AppRouter {
       RoutePaths.harmfulDone: (_) => const HarmfulDoneScreen(),
     };
   }
+
+  /// 탭 전환처럼 좌우 이동 느낌이 없어야 하는 화면에 쓰는 페이드 전환 라우트.
+  static Route<void> fadeRoute(String path) {
+    return PageRouteBuilder(
+      settings: RouteSettings(name: path),
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, _, _) => routes[path]!(context),
+      transitionsBuilder: (_, animation, _, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
 }

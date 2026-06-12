@@ -1,30 +1,20 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:ssairen/main.dart';
+import 'package:ssairen/features/home/presentation/home_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('홈 화면 주요 섹션이 표시된다', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('싸이렌'), findsWidgets);
+    expect(find.text('보호 중'), findsOneWidget);
+    expect(find.text('이번 주 리포트'), findsOneWidget);
+    expect(find.text('0건'), findsOneWidget);
+    expect(find.text('의심 전화 없음'), findsOneWidget);
+    expect(find.text('실시간 검사'), findsOneWidget);
+    expect(find.text('DB 업데이트'), findsOneWidget);
+    expect(find.text('내 보호자'), findsOneWidget);
+    expect(find.text('아들 (김철수)'), findsOneWidget);
+    expect(find.text('딸 (김영희)'), findsOneWidget);
   });
 }
