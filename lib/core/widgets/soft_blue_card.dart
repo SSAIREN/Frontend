@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 
-/// 홈 화면 공용 연파랑 라운드 카드.
+/// 연파랑 라운드 카드.
 ///
-/// 보호 상태/주간 리포트/상태 타일/보호자 목록 카드가 같은 장식을 공유한다.
-class HomeCard extends StatelessWidget {
-  const HomeCard({
+/// 홈 화면 카드와 완료/결과 화면의 안내 카드가 같은 장식을 공유한다.
+class SoftBlueCard extends StatelessWidget {
+  const SoftBlueCard({
     required this.child,
     this.padding = const EdgeInsets.all(AppSpacing.xl),
     super.key,

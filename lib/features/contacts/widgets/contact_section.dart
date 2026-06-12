@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/widgets/labeled_section_card.dart';
 import 'package:ssairen/models/contact.dart';
 
 /// 초성('ㄱ', 'ㄴ' …) 라벨과 해당 초성의 연락처 카드.
@@ -18,43 +19,12 @@ class ContactSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return LabeledSectionCard(
+      title: title,
+      dividerIndent: 72,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.sm,
-            bottom: AppSpacing.sm,
-          ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.bgPrimary,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < contacts.length; i++) ...[
-                if (i > 0)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    indent: 72,
-                    color: AppColors.bgSecondary,
-                  ),
-                _ContactTile(contact: contacts[i], onTap: onContactTap),
-              ],
-            ],
-          ),
-        ),
+        for (final contact in contacts)
+          _ContactTile(contact: contact, onTap: onContactTap),
       ],
     );
   }
