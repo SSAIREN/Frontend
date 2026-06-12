@@ -5,6 +5,9 @@ import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/glowing_check.dart';
 import 'package:ssairen/core/widgets/primary_button.dart';
+import 'package:ssairen/core/widgets/screen_headline.dart';
+import 'package:ssairen/core/widgets/soft_blue_card.dart';
+import 'package:ssairen/core/widgets/stretch_scroll_column.dart';
 
 class HarmfulDoneScreen extends StatelessWidget {
   const HarmfulDoneScreen({super.key});
@@ -13,81 +16,50 @@ class HarmfulDoneScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // 화면이 작으면 스크롤되고, 충분하면 Spacer가 여백을 채우는 구조
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.screenPadding),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - AppSpacing.screenPadding * 2,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(flex: 2),
-                    const Center(child: GlowingCheck()),
-                    const SizedBox(height: 40),
-                    const Text(
-                      '모두 안전해요!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    const Text(
-                      '아드님이 안전한 것이 확인됐어요.\n경찰에 자동으로 신고가 완료됐습니다.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                    const Spacer(flex: 2),
-                    const Center(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _SafetyCheckRow(label: '아들 김철수 안전 확인'),
-                          SizedBox(height: AppSpacing.lg),
-                          _SafetyCheckRow(label: '경찰 자동 신고 완료'),
-                          SizedBox(height: AppSpacing.lg),
-                          _SafetyCheckRow(label: '통화 내용 익명 처리 완료'),
-                        ],
-                      ),
-                    ),
-                    const Spacer(flex: 2),
-                    const _PoliceMessageCard(message: '"신고 접수됐습니다. 수고하셨습니다."'),
-                    const SizedBox(height: AppSpacing.xl),
-                    const Text(
-                      '위험한 상황에서 침착하게 대응하여 큰 사고를 막으셨습니다.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const Spacer(flex: 2),
-                    PrimaryButton(
-                      label: '확인',
-                      onPressed: () {
-                        Navigator.of(
-                          context,
-                        ).pushReplacement(AppRouter.fadeRoute(RoutePaths.home));
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-                ),
+        child: StretchScrollColumn(
+          children: [
+            const Spacer(flex: 2),
+            const Center(child: GlowingCheck()),
+            const SizedBox(height: 40),
+            const ScreenHeadline(
+              title: '모두 안전해요!',
+              subtitle: '아드님이 안전한 것이 확인됐어요.\n경찰에 자동으로 신고가 완료됐습니다.',
+            ),
+            const Spacer(flex: 2),
+            const Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SafetyCheckRow(label: '아들 김철수 안전 확인'),
+                  SizedBox(height: AppSpacing.lg),
+                  _SafetyCheckRow(label: '경찰 자동 신고 완료'),
+                  SizedBox(height: AppSpacing.lg),
+                  _SafetyCheckRow(label: '통화 내용 익명 처리 완료'),
+                ],
               ),
             ),
-          ),
+            const Spacer(flex: 2),
+            const _PoliceMessageCard(message: '"신고 접수됐습니다. 수고하셨습니다."'),
+            const SizedBox(height: AppSpacing.xl),
+            const Text(
+              '위험한 상황에서 침착하게 대응하여 큰 사고를 막으셨습니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textMuted,
+              ),
+            ),
+            const Spacer(flex: 2),
+            PrimaryButton(
+              label: '확인',
+              onPressed: () {
+                Navigator.of(context)
+                    .pushReplacement(AppRouter.fadeRoute(RoutePaths.home));
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
         ),
       ),
     );
@@ -136,15 +108,7 @@ class _PoliceMessageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.bgBlueSoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.brandBlueLight.withValues(alpha: 0.45),
-        ),
-      ),
+    return SoftBlueCard(
       child: Row(
         children: [
           Container(

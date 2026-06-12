@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
-import 'package:ssairen/features/home/widgets/home_card.dart';
+import 'package:ssairen/core/widgets/soft_blue_card.dart';
 import 'package:ssairen/models/guardian.dart';
 
 class GuardianList extends StatelessWidget {
@@ -14,7 +14,7 @@ class GuardianList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HomeCard(
+    return SoftBlueCard(
       padding: EdgeInsets.zero,
       child: Column(
         children: [

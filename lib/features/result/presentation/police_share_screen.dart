@@ -4,6 +4,9 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/primary_button.dart';
+import 'package:ssairen/core/widgets/screen_headline.dart';
+import 'package:ssairen/core/widgets/soft_blue_card.dart';
+import 'package:ssairen/core/widgets/stretch_scroll_column.dart';
 import 'package:ssairen/features/result/widgets/result_stat_card.dart';
 
 class PoliceShareScreen extends StatelessWidget {
@@ -13,113 +16,85 @@ class PoliceShareScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        // 화면이 작으면 스크롤되고, 충분하면 Spacer가 여백을 채우는 구조
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.screenPadding),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - AppSpacing.screenPadding * 2,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Spacer(),
-                    Center(
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: AppColors.bgBlueSoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Image.asset(
-                          'assets/logo_check.png',
-                          width: 68,
-                          height: 68,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
-                    const Text(
-                      '이제 안심하세요',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const Text(
-                      '통화가 종료됐어요. 위험 요소는 사라졌습니다.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    const _PrivacyNoticeCard(),
-                    const SizedBox(height: AppSpacing.lg),
-                    const Row(
-                      children: [
-                        Expanded(
-                          child: ResultStatCard(
-                            icon: Icons.warning,
-                            iconColor: AppColors.warningButton,
-                            label: '위험 감지 항목',
-                            value: '보이스피싱',
-                          ),
-                        ),
-                        SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: ResultStatCard(
-                            icon: Icons.watch_later,
-                            iconColor: AppColors.brandBlue,
-                            label: '통화 지속 시간',
-                            value: '04:21',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    PrimaryButton(
-                      label: '경찰에 공유하기',
-                      icon: Icons.share,
-                      onPressed: () {
-                        // TODO: 경찰 공유 API 연동
-                        Navigator.of(context).pushReplacement(
-                          AppRouter.fadeRoute(RoutePaths.receiptDone),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          AppRouter.fadeRoute(RoutePaths.home),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textMuted,
-                      ),
-                      child: const Text(
-                        '괜찮아요',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+        child: StretchScrollColumn(
+          children: [
+            const Spacer(),
+            Center(
+              child: Container(
+                width: 120,
+                height: 120,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: AppColors.bgBlueSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Image.asset(
+                  'assets/logo_check.png',
+                  width: 68,
+                  height: 68,
                 ),
               ),
             ),
-          ),
+            const SizedBox(height: AppSpacing.xxl),
+            const ScreenHeadline(
+              title: '이제 안심하세요',
+              subtitle: '통화가 종료됐어요. 위험 요소는 사라졌습니다.',
+              gap: AppSpacing.md,
+            ),
+            const Spacer(),
+            const _PrivacyNoticeCard(),
+            const SizedBox(height: AppSpacing.lg),
+            const Row(
+              children: [
+                Expanded(
+                  child: ResultStatCard(
+                    icon: Icons.warning,
+                    iconColor: AppColors.warningButton,
+                    label: '위험 감지 항목',
+                    value: '보이스피싱',
+                  ),
+                ),
+                SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: ResultStatCard(
+                    icon: Icons.watch_later,
+                    iconColor: AppColors.brandBlue,
+                    label: '통화 지속 시간',
+                    value: '04:21',
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            PrimaryButton(
+              label: '경찰에 공유하기',
+              icon: Icons.share,
+              onPressed: () {
+                // TODO: 경찰 공유 API 연동
+                Navigator.of(context).pushReplacement(
+                  AppRouter.fadeRoute(RoutePaths.receiptDone),
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pushReplacement(
+                  AppRouter.fadeRoute(RoutePaths.home),
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.textMuted,
+              ),
+              child: const Text(
+                '괜찮아요',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -132,28 +107,20 @@ class _PrivacyNoticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.bgBlueSoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.brandBlueLight.withValues(alpha: 0.45),
-        ),
-      ),
+    return const SoftBlueCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.visibility_off,
             color: AppColors.brandBlue,
             size: 24,
           ),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: AppSpacing.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
                   '개인정보는 안전하게 보호돼요',
                   style: TextStyle(
