@@ -11,7 +11,9 @@ import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/risk_result.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
+import 'package:ssairen/models/websocket_event.dart';
 import 'package:ssairen/services/analyze_api_service.dart';
+import 'package:ssairen/services/websocket_service.dart';
 
 class CallingScreen extends StatefulWidget {
   const CallingScreen({super.key});
@@ -22,6 +24,7 @@ class CallingScreen extends StatefulWidget {
 
 class _CallingScreenState extends State<CallingScreen> {
   static const _phoneNumber = '01087654321';
+  static const _debugStopAtWarningBranch = true;
   static const _mockTranscriptTexts = [
     '지금은 평범한 통화 내용입니다.',
     '계좌 확인이 필요하다는 표현이 나왔습니다.',
@@ -30,12 +33,19 @@ class _CallingScreenState extends State<CallingScreen> {
   ];
 
   final _analyzeApiService = AnalyzeApiService();
+  final _webSocketService = WebSocketService();
   Timer? _transcriptTimer;
+  StreamSubscription<SocketEvent>? _socketSubscription;
   int _riskPercent = 12;
   int _nextTranscriptSequence = 1;
+  int _lastAcceptedSequence = 0;
   int _mockTranscriptIndex = 0;
+  String _latestAiSummary = '현재까지 위험 표현은 감지되지 않았습니다.';
+  List<String> _latestKeywords = const [];
+  String _latestPhishingType = 'NONE';
   bool _shownWarningSheet = false;
   bool _shownDangerSheet = false;
+  bool _isWebSocketConnected = false;
   CallSession? _callSession;
 
   @override
@@ -47,6 +57,8 @@ class _CallingScreenState extends State<CallingScreen> {
   @override
   void dispose() {
     _transcriptTimer?.cancel();
+    unawaited(_socketSubscription?.cancel());
+    unawaited(_webSocketService.close());
     super.dispose();
   }
 
@@ -100,6 +112,14 @@ class _CallingScreenState extends State<CallingScreen> {
     );
 
     try {
+      debugPrint(
+        '[CALL_SESSION][REQUEST] '
+        'userId=${request.userId}, '
+        'externalCallId=${request.externalCallId}, '
+        'deviceId=${request.deviceId}, '
+        'phoneNumber=${request.phoneNumber}, '
+        'victim=${request.victim.name}/${request.victim.age}',
+      );
       final session = await _analyzeApiService.createCallSession(request);
       if (!mounted) return;
 
@@ -107,7 +127,13 @@ class _CallingScreenState extends State<CallingScreen> {
         _callSession = session;
         _nextTranscriptSequence = session.nextTranscriptSequence;
       });
-      debugPrint('Call session created: ${session.sessionId}');
+      debugPrint(
+        '[CALL_SESSION][RESPONSE] '
+        'sessionId=${session.sessionId}, '
+        'status=${session.status}, '
+        'nextSequence=${session.nextTranscriptSequence}, '
+        'webSocketUrl=${session.webSocketUrl}',
+      );
       _startTranscriptAnalysis();
     } catch (error, stackTrace) {
       debugPrint('Failed to create call session: $error');
@@ -117,6 +143,13 @@ class _CallingScreenState extends State<CallingScreen> {
 
   void _handleEndCall() {
     _transcriptTimer?.cancel();
+    final session = _callSession;
+    if (_isWebSocketConnected && session != null) {
+      _webSocketService.sendSessionComplete(
+        sessionId: session.sessionId,
+        lastTranscriptSequence: _lastAcceptedSequence,
+      );
+    }
     debugPrint('Ending call session: ${_callSession?.sessionId ?? 'none'}');
     Navigator.of(context).maybePop();
   }
@@ -150,27 +183,41 @@ class _CallingScreenState extends State<CallingScreen> {
     );
 
     try {
+      if (_isWebSocketConnected) {
+        _webSocketService.sendTranscriptChunk(
+          sessionId: session.sessionId,
+          request: request,
+        );
+        debugPrint('Transcript sent via WebSocket: sequence=$sequence');
+        return;
+      }
+
+      _logRestAnalyzeRequest(
+        sessionId: session.sessionId,
+        request: request,
+      );
       final response = await _analyzeApiService.analyzeTranscript(
         sessionId: session.sessionId,
         request: request,
       );
       if (!mounted) return;
 
-      setState(() {
-        _riskPercent = response.riskScore;
-        _nextTranscriptSequence = response.nextTranscriptSequence;
-        if (_mockTranscriptIndex < _mockTranscriptTexts.length - 1) {
-          _mockTranscriptIndex += 1;
-        }
-      });
-      debugPrint(
-        'Transcript analyzed: '
-        'sequence=${response.acceptedSequence}, '
-        'riskScore=${response.riskScore}, '
-        'shouldOpenWebSocket=${response.shouldOpenWebSocket}',
+      _logRestAnalyzeResponse(response);
+      _applyTranscriptProgress(
+        riskScore: response.riskScore,
+        nextTranscriptSequence: response.nextTranscriptSequence,
+        aiSummary: response.aiSummary,
+        keywords: response.keywords,
+        phishingType: response.phishingType,
       );
-      if (response.shouldOpenWebSocket) {
-        debugPrint('WebSocket should open for session: ${response.sessionId}');
+      if (response.shouldOpenWebSocket && !_debugStopAtWarningBranch) {
+        _connectWebSocket(session);
+      } else if (response.shouldOpenWebSocket) {
+        debugPrint(
+          '[REST_ANALYZE][DECISION] '
+          'shouldOpenWebSocket=true, but warning branch debug mode keeps '
+          'WebSocket closed for this check.',
+        );
       }
       _handleAnalysisRisk(response.riskScore);
     } catch (error, stackTrace) {
@@ -179,10 +226,154 @@ class _CallingScreenState extends State<CallingScreen> {
     }
   }
 
+  void _logRestAnalyzeRequest({
+    required String sessionId,
+    required TranscriptAnalyzeRequest request,
+  }) {
+    debugPrint(
+      '[REST_ANALYZE][REQUEST] '
+      'POST /api/mobile/call-sessions/$sessionId/transcripts/analyze '
+      'chunkId=${request.chunkId}, '
+      'sequence=${request.sequence}, '
+      'startedAtMs=${request.startedAtMs}, '
+      'endedAtMs=${request.endedAtMs}, '
+      'isFinal=${request.isFinal}, '
+      'text="${request.text}"',
+    );
+  }
+
+  void _logRestAnalyzeResponse(TranscriptAnalyzeResponse response) {
+    debugPrint(
+      '[REST_ANALYZE][RESPONSE] '
+      'sessionId=${response.sessionId}, '
+      'chunkId=${response.chunkId}, '
+      'acceptedSequence=${response.acceptedSequence}, '
+      'nextSequence=${response.nextTranscriptSequence}, '
+      'duplicate=${response.duplicate}, '
+      'thresholdReached=${response.analysisThresholdReached}, '
+      'riskScore=${response.riskScore}, '
+      'level=${RiskLevel.fromPercent(response.riskScore).label}, '
+      'phishingType=${response.phishingType}, '
+      'shouldOpenWebSocket=${response.shouldOpenWebSocket}, '
+      'aiSummary="${response.aiSummary}", '
+      'keywords=${response.keywords}',
+    );
+  }
+
+  void _applyTranscriptProgress({
+    required int riskScore,
+    required int nextTranscriptSequence,
+    required String aiSummary,
+    required List<String> keywords,
+    required String phishingType,
+  }) {
+    setState(() {
+      _riskPercent = riskScore;
+      _nextTranscriptSequence = nextTranscriptSequence;
+      _latestAiSummary = aiSummary;
+      _latestKeywords = keywords;
+      _latestPhishingType = phishingType;
+      _lastAcceptedSequence = nextTranscriptSequence - 1;
+      if (_mockTranscriptIndex < _mockTranscriptTexts.length - 1) {
+        _mockTranscriptIndex += 1;
+      }
+    });
+  }
+
+  void _connectWebSocket(CallSession session) {
+    if (_isWebSocketConnected) return;
+
+    debugPrint('Opening WebSocket for session: ${session.sessionId}');
+    setState(() {
+      _isWebSocketConnected = true;
+    });
+    unawaited(_socketSubscription?.cancel());
+    _socketSubscription = _webSocketService
+        .connect(
+          session,
+          nextTranscriptSequence: _nextTranscriptSequence,
+        )
+        .listen(
+      _handleSocketEvent,
+      onError: (Object error, StackTrace stackTrace) {
+        debugPrint('WebSocket error: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      },
+      onDone: () {
+        debugPrint('WebSocket closed.');
+        if (!mounted) return;
+        setState(() {
+          _isWebSocketConnected = false;
+        });
+      },
+    );
+  }
+
+  void _handleSocketEvent(SocketEvent event) {
+    if (!mounted) return;
+
+    debugPrint('WebSocket event received: ${event.eventType.value}');
+
+    switch (event.eventType) {
+      case SocketEventType.sessionReady:
+        final data = SessionReadyData.fromEvent(event);
+        setState(() {
+          _isWebSocketConnected = true;
+          _nextTranscriptSequence = data.nextTranscriptSequence;
+        });
+      case SocketEventType.transcriptAck:
+        setState(() {
+          _lastAcceptedSequence = event.data['acceptedSequence'] as int;
+          _nextTranscriptSequence = event.data['nextTranscriptSequence'] as int;
+        });
+      case SocketEventType.analysisResult:
+        final data = AnalysisResultData.fromEvent(event);
+        _applyTranscriptProgress(
+          riskScore: data.riskScore,
+          nextTranscriptSequence: data.sequence + 1,
+          aiSummary: data.aiSummary,
+          keywords: data.keywords,
+          phishingType: data.phishingType,
+        );
+        _handleAnalysisRisk(data.riskScore);
+      case SocketEventType.sessionCompleteAck:
+        debugPrint('Session complete ack received.');
+      case SocketEventType.analysisError:
+        debugPrint('WebSocket analysis error data: ${event.data}');
+      case SocketEventType.transcriptNack:
+        _handleTranscriptNack(event);
+      case SocketEventType.transcriptChunk:
+      case SocketEventType.sessionComplete:
+      case SocketEventType.ping:
+      case SocketEventType.pong:
+        break;
+    }
+  }
+
+  void _handleTranscriptNack(SocketEvent event) {
+    final details = event.data['details'];
+    if (details is Map<String, dynamic>) {
+      final expectedSequence = details['expectedSequence'];
+      if (expectedSequence is int) {
+        setState(() {
+          _nextTranscriptSequence = expectedSequence;
+        });
+      }
+    }
+    debugPrint('WebSocket transcript nack data: ${event.data}');
+  }
+
   void _handleAnalysisRisk(int riskScore) {
     final level = RiskLevel.fromPercent(riskScore);
     if (level == RiskLevel.warning && !_shownWarningSheet) {
       _shownWarningSheet = true;
+      if (_debugStopAtWarningBranch) {
+        _transcriptTimer?.cancel();
+        debugPrint(
+          '[WARNING_BRANCH][PAUSE] '
+          'Mock transcript timer stopped after warning state for inspection.',
+        );
+      }
       _showSuspiciousSheet();
     }
     if (level == RiskLevel.danger && !_shownDangerSheet) {
@@ -192,6 +383,13 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _showSuspiciousSheet() {
+    debugPrint(
+      '[WARNING_BOTTOM_SHEET][SHOW] '
+      'percent=$_riskPercent, '
+      'aiSummary="$_latestAiSummary", '
+      'keywords=$_latestKeywords, '
+      'phishingType=$_latestPhishingType',
+    );
     showModalBottomSheet<void>(
       context: context,
       barrierColor: AppColors.overlayDim,
@@ -200,6 +398,8 @@ class _CallingScreenState extends State<CallingScreen> {
       builder: (_) {
         return SuspiciousBottomSheet(
           percent: _riskPercent,
+          aiSummary: _latestAiSummary,
+          keywords: _latestKeywords,
           onEndCall: () {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed(RoutePaths.policeShare);
@@ -215,8 +415,25 @@ class _CallingScreenState extends State<CallingScreen> {
       barrierColor: AppColors.overlayDim,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => HarmfulBottomSheet(percent: _riskPercent),
+      builder: (_) => HarmfulBottomSheet(
+        percent: _riskPercent,
+        aiSummary: _dangerAiSummary,
+        keywords: _dangerKeywords,
+      ),
     );
+  }
+
+  String get _dangerAiSummary {
+    if (_latestAiSummary.isNotEmpty) return _latestAiSummary;
+    return '가족을 사칭한 협박과 입금 유도 표현이 탐지되었습니다.';
+  }
+
+  List<String> get _dangerKeywords {
+    if (_latestKeywords.isNotEmpty) return _latestKeywords;
+    if (_latestPhishingType == 'FAMILY_THREAT') {
+      return const ['납치', '아들', '입금'];
+    }
+    return const ['납치', '아들', '입금'];
   }
 }
 
