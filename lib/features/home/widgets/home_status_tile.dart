@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/widgets/soft_blue_card.dart';
 
 class HomeStatusTile extends StatelessWidget {
   const HomeStatusTile({
@@ -16,15 +17,8 @@ class HomeStatusTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SoftBlueCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.bgBlueSoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.brandBlueLight.withValues(alpha: 0.45),
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

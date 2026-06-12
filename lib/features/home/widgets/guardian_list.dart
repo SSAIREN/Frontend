@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/widgets/soft_blue_card.dart';
 import 'package:ssairen/models/guardian.dart';
 
 class GuardianList extends StatelessWidget {
@@ -13,14 +14,8 @@ class GuardianList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgBlueSoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.brandBlueLight.withValues(alpha: 0.45),
-        ),
-      ),
+    return SoftBlueCard(
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           for (var i = 0; i < guardians.length; i++) ...[

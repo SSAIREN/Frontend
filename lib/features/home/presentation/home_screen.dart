@@ -71,39 +71,7 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xxl),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '내 보호자',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      // TODO: 보호자 초대 기능 연결
-                    },
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.brandBlue,
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text(
-                      '초대 보내기',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              const _GuardianSectionHeader(),
               const SizedBox(height: AppSpacing.md),
               const GuardianList(guardians: _guardians),
               const SizedBox(height: 36),
@@ -112,6 +80,48 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentTab: MainTab.home),
+    );
+  }
+}
+
+/// '내 보호자' 섹션 제목과 초대 보내기 버튼.
+class _GuardianSectionHeader extends StatelessWidget {
+  const _GuardianSectionHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(
+          child: Text(
+            '내 보호자',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: () {
+            // TODO: 보호자 초대 기능 연결
+          },
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.brandBlue,
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.add_circle_outline, size: 18),
+          label: const Text(
+            '초대 보내기',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

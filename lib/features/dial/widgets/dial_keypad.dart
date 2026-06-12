@@ -10,20 +10,20 @@ class DialKeypad extends StatelessWidget {
 
   final ValueChanged<String> onKeyPressed;
 
-  /// (키 값, 한글 보조 라벨, 영문 보조 라벨)
-  static const _keys = [
-    ('1', '', ''),
-    ('2', '', 'ABC'),
-    ('3', '', 'DEF'),
-    ('4', 'ㄱㅋ', 'GHI'),
-    ('5', 'ㄴㄹ', 'JKL'),
-    ('6', 'ㄷㅌ', 'MNO'),
-    ('7', 'ㅂㅍ', 'PQRS'),
-    ('8', 'ㅅㅎ', 'TUV'),
-    ('9', 'ㅈㅊ', 'WXYZ'),
-    ('*', '', ''),
-    ('0', 'ㅇㅁ', ''),
-    ('#', '', ''),
+  /// 키 값과 한글/영문 보조 라벨.
+  static const _keys = <({String value, String kor, String eng})>[
+    (value: '1', kor: '', eng: ''),
+    (value: '2', kor: '', eng: 'ABC'),
+    (value: '3', kor: '', eng: 'DEF'),
+    (value: '4', kor: 'ㄱㅋ', eng: 'GHI'),
+    (value: '5', kor: 'ㄴㄹ', eng: 'JKL'),
+    (value: '6', kor: 'ㄷㅌ', eng: 'MNO'),
+    (value: '7', kor: 'ㅂㅍ', eng: 'PQRS'),
+    (value: '8', kor: 'ㅅㅎ', eng: 'TUV'),
+    (value: '9', kor: 'ㅈㅊ', eng: 'WXYZ'),
+    (value: '*', kor: '', eng: ''),
+    (value: '0', kor: 'ㅇㅁ', eng: ''),
+    (value: '#', kor: '', eng: ''),
   ];
 
   @override
@@ -39,9 +39,9 @@ class DialKeypad extends StatelessWidget {
                 for (var col = 0; col < 3; col++)
                   Expanded(
                     child: _DialKey(
-                      value: _keys[row * 3 + col].$1,
-                      subKorean: _keys[row * 3 + col].$2,
-                      subLatin: _keys[row * 3 + col].$3,
+                      value: _keys[row * 3 + col].value,
+                      subKorean: _keys[row * 3 + col].kor,
+                      subLatin: _keys[row * 3 + col].eng,
                       onTap: onKeyPressed,
                     ),
                   ),

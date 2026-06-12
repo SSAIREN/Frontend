@@ -3,6 +3,8 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
+import 'package:ssairen/core/widgets/screen_action_icons.dart';
+import 'package:ssairen/features/dial/widgets/dial_call_bar.dart';
 import 'package:ssairen/features/dial/widgets/dial_keypad.dart';
 
 class DialScreen extends StatefulWidget {
@@ -23,6 +25,12 @@ class _DialScreenState extends State<DialScreen> {
     setState(() => _number = _number.substring(0, _number.length - 1));
   }
 
+  void _onCall() {
+    if (_number.isEmpty) return;
+    // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
+    Navigator.of(context).pushNamed(RoutePaths.calling);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,39 +47,7 @@ class _DialScreenState extends State<DialScreen> {
                 AppSpacing.screenPadding,
                 0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Icon(
-                    Icons.search,
-                    size: 26,
-                    color: AppColors.textHeading,
-                  ),
-                  const SizedBox(width: AppSpacing.xl),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.more_vert,
-                        size: 26,
-                        color: AppColors.textHeading,
-                      ),
-                      Positioned(
-                        top: -2,
-                        right: -4,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.alertOrange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              child: const ScreenActionIcons(),
             ),
             Expanded(
               child: Center(
@@ -90,47 +66,11 @@ class _DialScreenState extends State<DialScreen> {
             ),
             DialKeypad(onKeyPressed: _onKeyPressed),
             const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    if (_number.isEmpty) return;
-                    // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
-                    Navigator.of(context).pushNamed(RoutePaths.calling);
-                  },
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: AppColors.brandBlue,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.call,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: _number.isEmpty
-                      ? const SizedBox.shrink()
-                      : Center(
-                          child: InkResponse(
-                            onTap: _onBackspace,
-                            // 길게 누르면 전체 삭제
-                            onLongPress: () => setState(() => _number = ''),
-                            radius: 28,
-                            child: const Icon(
-                              Icons.backspace_outlined,
-                              size: 26,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                ),
-              ],
+            DialCallBar(
+              showBackspace: _number.isNotEmpty,
+              onCall: _onCall,
+              onBackspace: _onBackspace,
+              onClearAll: () => setState(() => _number = ''),
             ),
             // 플로팅 하단 바(58 + 여백)에 가리지 않도록 확보
             const SizedBox(height: 150),
