@@ -50,14 +50,15 @@ class ProtectionStatusCard extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.brandBlueLight.withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.health_and_safety,
-              color: AppColors.brandBlue,
-              size: 30,
+            child: Image.asset(
+              'assets/widget_logo_blue.png',
+              width: 30,
+              height: 30,
             ),
           ),
         ],
