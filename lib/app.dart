@@ -12,7 +12,7 @@ class SsairenApp extends StatelessWidget {
       title: 'SSAIREN',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: RoutePaths.onboardingContacts,
+      initialRoute: RoutePaths.splash,
       routes: AppRouter.routes,
     );
   }
