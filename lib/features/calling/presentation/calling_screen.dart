@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
@@ -6,7 +8,10 @@ import 'package:ssairen/features/calling/widgets/call_gradient_background.dart';
 import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
 import 'package:ssairen/features/calling/widgets/risk_monitor_panel.dart';
 import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
+import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/risk_result.dart';
+import 'package:ssairen/models/transcript_analysis.dart';
+import 'package:ssairen/services/analyze_api_service.dart';
 
 class CallingScreen extends StatefulWidget {
   const CallingScreen({super.key});
@@ -16,13 +21,34 @@ class CallingScreen extends StatefulWidget {
 }
 
 class _CallingScreenState extends State<CallingScreen> {
-  static const _mockRiskPercents = [12, 42, 72, 92];
+  static const _phoneNumber = '01087654321';
+  static const _mockTranscriptTexts = [
+    '지금은 평범한 통화 내용입니다.',
+    '계좌 확인이 필요하다는 표현이 나왔습니다.',
+    '검찰 수사관입니다. 안전 계좌로 입금하세요.',
+    '아들을 데리고 있습니다. 지금 바로 입금하세요.',
+  ];
 
-  int _riskIndex = 0;
+  final _analyzeApiService = AnalyzeApiService();
+  Timer? _transcriptTimer;
+  int _riskPercent = 12;
+  int _nextTranscriptSequence = 1;
+  int _mockTranscriptIndex = 0;
   bool _shownWarningSheet = false;
   bool _shownDangerSheet = false;
+  CallSession? _callSession;
 
-  int get _riskPercent => _mockRiskPercents[_riskIndex];
+  @override
+  void initState() {
+    super.initState();
+    _createCallSession();
+  }
+
+  @override
+  void dispose() {
+    _transcriptTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +70,14 @@ class _CallingScreenState extends State<CallingScreen> {
                   const _CallHeader(),
                   const SizedBox(height: 42),
                   GestureDetector(
-                    onTap: _nextRiskState,
+                    onTap: _sendNextMockTranscript,
                     child: RiskMonitorPanel(percent: _riskPercent),
                   ),
                   const SizedBox(height: 28),
                   const _ControlGrid(),
                   const SizedBox(height: 34),
                   _EndCallButton(
-                    onPressed: () => Navigator.of(context).maybePop(),
+                    onPressed: _handleEndCall,
                   ),
                 ],
               ),
@@ -62,12 +88,99 @@ class _CallingScreenState extends State<CallingScreen> {
     );
   }
 
-  void _nextRiskState() {
-    setState(() {
-      _riskIndex = (_riskIndex + 1) % _mockRiskPercents.length;
-    });
+  Future<void> _createCallSession() async {
+    final startedAt = DateTime.now();
+    final request = CallSessionCreateRequest(
+      userId: 1001,
+      externalCallId: 'device-call-${startedAt.microsecondsSinceEpoch}',
+      deviceId: 'victim-device-001',
+      startedAt: startedAt,
+      phoneNumber: _phoneNumber,
+      victim: const CallSessionVictim(name: '김영희', age: 71),
+    );
 
-    final level = RiskLevel.fromPercent(_riskPercent);
+    try {
+      final session = await _analyzeApiService.createCallSession(request);
+      if (!mounted) return;
+
+      setState(() {
+        _callSession = session;
+        _nextTranscriptSequence = session.nextTranscriptSequence;
+      });
+      debugPrint('Call session created: ${session.sessionId}');
+      _startTranscriptAnalysis();
+    } catch (error, stackTrace) {
+      debugPrint('Failed to create call session: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  void _handleEndCall() {
+    _transcriptTimer?.cancel();
+    debugPrint('Ending call session: ${_callSession?.sessionId ?? 'none'}');
+    Navigator.of(context).maybePop();
+  }
+
+  void _startTranscriptAnalysis() {
+    _transcriptTimer?.cancel();
+    _sendNextMockTranscript();
+    _transcriptTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _sendNextMockTranscript(),
+    );
+  }
+
+  Future<void> _sendNextMockTranscript() async {
+    final session = _callSession;
+    if (session == null) return;
+
+    final sequence = _nextTranscriptSequence;
+    final chunkIndex = sequence - 1;
+    final transcriptIndex = _mockTranscriptIndex.clamp(
+      0,
+      _mockTranscriptTexts.length - 1,
+    ).toInt();
+    final text = _mockTranscriptTexts[transcriptIndex];
+    final request = TranscriptAnalyzeRequest(
+      chunkId: 'chunk-${sequence.toString().padLeft(3, '0')}',
+      sequence: sequence,
+      text: text,
+      startedAtMs: chunkIndex * 5000,
+      endedAtMs: (chunkIndex + 1) * 5000,
+    );
+
+    try {
+      final response = await _analyzeApiService.analyzeTranscript(
+        sessionId: session.sessionId,
+        request: request,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _riskPercent = response.riskScore;
+        _nextTranscriptSequence = response.nextTranscriptSequence;
+        if (_mockTranscriptIndex < _mockTranscriptTexts.length - 1) {
+          _mockTranscriptIndex += 1;
+        }
+      });
+      debugPrint(
+        'Transcript analyzed: '
+        'sequence=${response.acceptedSequence}, '
+        'riskScore=${response.riskScore}, '
+        'shouldOpenWebSocket=${response.shouldOpenWebSocket}',
+      );
+      if (response.shouldOpenWebSocket) {
+        debugPrint('WebSocket should open for session: ${response.sessionId}');
+      }
+      _handleAnalysisRisk(response.riskScore);
+    } catch (error, stackTrace) {
+      debugPrint('Failed to analyze transcript: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
+  void _handleAnalysisRisk(int riskScore) {
+    final level = RiskLevel.fromPercent(riskScore);
     if (level == RiskLevel.warning && !_shownWarningSheet) {
       _shownWarningSheet = true;
       _showSuspiciousSheet();
