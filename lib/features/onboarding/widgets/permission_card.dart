@@ -34,6 +34,7 @@ class PermissionCard extends StatelessWidget {
         border: Border.all(color: AppColors.brandBlueLight, width: 0.8),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
             radius: 39,

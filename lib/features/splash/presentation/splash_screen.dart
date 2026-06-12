@@ -41,8 +41,7 @@ class SplashScreen extends StatelessWidget {
                 label: '시작하기',
                 trailingIcon: Icons.arrow_forward,
                 onPressed: () {
-                  Navigator.of(context)
-                      .pushReplacementNamed(RoutePaths.onboardingMic);
+                  Navigator.of(context).pushNamed(RoutePaths.onboardingMic);
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
