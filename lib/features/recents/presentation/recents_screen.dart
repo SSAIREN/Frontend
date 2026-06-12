@@ -22,6 +22,11 @@ class RecentsScreen extends StatelessWidget {
       calledAt: DateTime.now(),
     ),
     CallLog(
+      name: '팀 싸이렌',
+      phoneNumber: '010-8765-4321',
+      calledAt: DateTime.now(),
+    ),
+    CallLog(
       name: '김땡땡',
       phoneNumber: '010-3456-7890',
       calledAt: DateTime.now(),

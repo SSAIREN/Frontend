@@ -8,11 +8,13 @@ class ContactSection extends StatelessWidget {
   const ContactSection({
     required this.title,
     required this.contacts,
+    this.onContactTap,
     super.key,
   });
 
   final String title;
   final List<Contact> contacts;
+  final ValueChanged<Contact>? onContactTap;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +50,7 @@ class ContactSection extends StatelessWidget {
                     indent: 72,
                     color: AppColors.bgSecondary,
                   ),
-                _ContactTile(contact: contacts[i]),
+                _ContactTile(contact: contacts[i], onTap: onContactTap),
               ],
             ],
           ),
@@ -59,9 +61,10 @@ class ContactSection extends StatelessWidget {
 }
 
 class _ContactTile extends StatelessWidget {
-  const _ContactTile({required this.contact});
+  const _ContactTile({required this.contact, this.onTap});
 
   final Contact contact;
+  final ValueChanged<Contact>? onTap;
 
   /// 아바타용 파스텔 팔레트. 이름에 따라 결정적으로 색이 정해진다.
   static const _avatarPalette = [
@@ -78,42 +81,45 @@ class _ContactTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _avatarColor,
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              contact.name.characters.first,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+    return InkWell(
+      onTap: onTap == null ? null : () => onTap!(contact),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _avatarColor,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                contact.name.characters.first,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Text(
-              contact.name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Text(
+                contact.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
@@ -94,7 +95,9 @@ class _DialScreenState extends State<DialScreen> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-                    // TODO: 통화 중 모니터링 화면(RoutePaths.calling) 연동
+                    if (_number.isEmpty) return;
+                    // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
+                    Navigator.of(context).pushNamed(RoutePaths.calling);
                   },
                   child: Container(
                     width: 72,
