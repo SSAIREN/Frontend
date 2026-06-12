@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
-import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/widgets/section_label.dart';
 
 /// 회색 라벨('오늘', 'ㄱ' 등) + 흰색 라운드 카드 + 행 사이 구분선 묶음.
 ///
@@ -24,20 +24,7 @@ class LabeledSectionCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.sm,
-            bottom: AppSpacing.sm,
-          ),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ),
+        SectionLabel(title),
         Container(
           decoration: BoxDecoration(
             color: AppColors.bgPrimary,

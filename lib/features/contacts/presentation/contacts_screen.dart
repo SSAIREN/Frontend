@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/utils/hangul.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
 import 'package:ssairen/core/widgets/screen_action_icons.dart';
+import 'package:ssairen/core/widgets/section_label.dart';
 import 'package:ssairen/features/contacts/widgets/contact_pill_card.dart';
 import 'package:ssairen/features/contacts/widgets/contact_section.dart';
 import 'package:ssairen/models/contact.dart';
@@ -22,32 +24,10 @@ class ContactsScreen extends StatelessWidget {
     Contact(name: '최땡땡', phoneNumber: '010-7777-8888'),
   ];
 
-  static const _choseong = [
-    'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ',
-    'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
-  ];
-
-  /// 쌍자음은 기본 자음 섹션에 합친다 (ㄲ → ㄱ).
-  static const _doubleToSingle = {
-    'ㄲ': 'ㄱ',
-    'ㄸ': 'ㄷ',
-    'ㅃ': 'ㅂ',
-    'ㅆ': 'ㅅ',
-    'ㅉ': 'ㅈ',
-  };
-
-  static String _initialOf(String name) {
-    final code = name.codeUnitAt(0);
-    // 한글 음절(가~힣)이면 초성 추출, 아니면 첫 글자 그대로
-    if (code < 0xAC00 || code > 0xD7A3) return name[0].toUpperCase();
-    final choseong = _choseong[(code - 0xAC00) ~/ 588];
-    return _doubleToSingle[choseong] ?? choseong;
-  }
-
   static Map<String, List<Contact>> _groupByInitial(List<Contact> contacts) {
     final grouped = <String, List<Contact>>{};
     for (final contact in contacts) {
-      (grouped[_initialOf(contact.name)] ??= []).add(contact);
+      (grouped[Hangul.initialOf(contact.name)] ??= []).add(contact);
     }
     return grouped;
   }
@@ -104,20 +84,7 @@ class ContactsScreen extends StatelessWidget {
                 leadingIcon: Icons.star,
               ),
               const SizedBox(height: AppSpacing.xxl),
-              const Padding(
-                padding: EdgeInsets.only(
-                  left: AppSpacing.sm,
-                  bottom: AppSpacing.sm,
-                ),
-                child: Text(
-                  '내 프로필',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+              const SectionLabel('내 프로필'),
               const ContactPillCard(
                 label: '싸이렌',
                 leadingAsset: 'assets/main_logo.png',
