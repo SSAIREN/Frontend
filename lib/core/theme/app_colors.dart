@@ -18,6 +18,7 @@ abstract final class AppColors {
 
   static const borderSubtle = Color(0xFFE4E4E6);
   static const navInactive = Color(0xFF9CA3AF);
+  static const navSelectedPill = Color(0xFFE5E7EB);
 
   static const safeGreen = Color(0xFF10B981);
   static const safeGreenAlt = Color(0xFF22C55E);
