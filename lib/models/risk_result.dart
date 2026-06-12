@@ -25,10 +25,10 @@ enum RiskLevel {
 
   Color get color {
     return switch (this) {
-      RiskLevel.safe => AppColors.safeGreen,
-      RiskLevel.caution => AppColors.warningOrange,
-      RiskLevel.warning => AppColors.alertOrange,
-      RiskLevel.danger => AppColors.dangerRed,
+      RiskLevel.safe => const Color(0xFF2AA97A),
+      RiskLevel.caution => const Color(0xFFFBBF24),
+      RiskLevel.warning => const Color(0xFFFB923C),
+      RiskLevel.danger => const Color(0xFFBE3A3A),
     };
   }
 
