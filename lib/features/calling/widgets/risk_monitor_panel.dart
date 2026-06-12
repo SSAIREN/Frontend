@@ -45,16 +45,17 @@ class RiskMonitorPanel extends StatelessWidget {
                   bottomRight: Radius.circular(7),
                 ),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.health_and_safety,
-                    size: 14,
-                    color: AppColors.brandBlueDark,
+                  Image.asset(
+                    'assets/icons/calling-ssiren-icon-ai.png',
+                    width: 12,
+                    height: 14,
+                    fit: BoxFit.contain,
                   ),
-                  SizedBox(width: 4),
-                  Text(
+                  const SizedBox(width: 4),
+                  const Text(
                     'AIMONITORING ACTIVE',
                     style: TextStyle(
                       color: AppColors.brandBlueDark,

@@ -34,8 +34,10 @@ class _CallingScreenState extends State<CallingScreen> {
 
   final _analyzeApiService = AnalyzeApiService();
   final _webSocketService = WebSocketService();
+  Timer? _callDurationTimer;
   Timer? _transcriptTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
+  Duration _callElapsed = Duration.zero;
   int _riskPercent = 12;
   int _nextTranscriptSequence = 1;
   int _lastAcceptedSequence = 0;
@@ -51,11 +53,13 @@ class _CallingScreenState extends State<CallingScreen> {
   @override
   void initState() {
     super.initState();
+    _startCallDurationTimer();
     _createCallSession();
   }
 
   @override
   void dispose() {
+    _callDurationTimer?.cancel();
     _transcriptTimer?.cancel();
     unawaited(_socketSubscription?.cancel());
     unawaited(_webSocketService.close());
@@ -77,7 +81,7 @@ class _CallingScreenState extends State<CallingScreen> {
               ),
               child: Column(
                 children: [
-                  const _CallingTopBar(),
+                  _CallingTopBar(elapsed: _callElapsed),
                   const SizedBox(height: 38),
                   const _CallHeader(),
                   const SizedBox(height: 42),
@@ -98,6 +102,16 @@ class _CallingScreenState extends State<CallingScreen> {
         ),
       ),
     );
+  }
+
+  void _startCallDurationTimer() {
+    _callDurationTimer?.cancel();
+    _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {
+        _callElapsed += const Duration(seconds: 1);
+      });
+    });
   }
 
   Future<void> _createCallSession() async {
@@ -142,6 +156,7 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleEndCall() {
+    _callDurationTimer?.cancel();
     _transcriptTimer?.cancel();
     final session = _callSession;
     if (_isWebSocketConnected && session != null) {
@@ -438,10 +453,15 @@ class _CallingScreenState extends State<CallingScreen> {
 }
 
 class _CallingTopBar extends StatelessWidget {
-  const _CallingTopBar();
+  const _CallingTopBar({required this.elapsed});
+
+  final Duration elapsed;
 
   @override
   Widget build(BuildContext context) {
+    final minutes = elapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = elapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+
     return Row(
       children: [
         const Spacer(),
@@ -462,9 +482,9 @@ class _CallingTopBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 4),
-        const Text(
-          'Voice 02:46',
-          style: TextStyle(
+        Text(
+          'Voice $minutes:$seconds',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 15,
             fontWeight: FontWeight.w800,
@@ -482,18 +502,19 @@ class _CallHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.health_and_safety,
-              color: AppColors.brandBlueLight,
-              size: 19,
+            Image.asset(
+              'assets/icons/calling-ssiren-icon.png',
+              width: 18,
+              height: 20,
+              fit: BoxFit.contain,
             ),
-            SizedBox(width: 8),
-            Text(
+            const SizedBox(width: 8),
+            const Text(
               'SSIREN',
               style: TextStyle(
                 color: AppColors.brandBlueLight,
@@ -504,8 +525,8 @@ class _CallHeader extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: 6),
-        Text(
+        const SizedBox(height: 6),
+        const Text(
           '010-8765-4321',
           style: TextStyle(
             color: Colors.white,
@@ -534,7 +555,7 @@ class _ControlGrid extends StatelessWidget {
       children: const [
         CallControlButton(icon: Icons.voicemail, label: '녹음'),
         CallControlButton(icon: Icons.mic_off_outlined, label: '내 소리 차단'),
-        CallControlButton(icon: Icons.bluetooth, label: '경민의 Watch5'),
+        CallControlButton(icon: Icons.bluetooth, label: '블루투스'),
         CallControlButton(icon: Icons.volume_up_outlined, label: '스피커'),
         CallControlButton(icon: Icons.dialpad, label: '키패드'),
         CallControlButton(icon: Icons.more_vert, label: '더 보기'),
