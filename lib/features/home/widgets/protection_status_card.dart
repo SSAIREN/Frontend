@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/features/home/widgets/home_card.dart';
 
 class ProtectionStatusCard extends StatelessWidget {
   const ProtectionStatusCard({
@@ -12,15 +13,7 @@ class ProtectionStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.bgBlueSoft,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.brandBlueLight.withValues(alpha: 0.45),
-        ),
-      ),
+    return HomeCard(
       child: Row(
         children: [
           Expanded(
