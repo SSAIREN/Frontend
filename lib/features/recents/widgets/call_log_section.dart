@@ -9,54 +9,63 @@ class CallLogSection extends StatelessWidget {
   const CallLogSection({
     required this.title,
     required this.logs,
+    this.onLogTap,
     super.key,
   });
 
   final String title;
   final List<CallLog> logs;
+  final ValueChanged<CallLog>? onLogTap;
 
   @override
   Widget build(BuildContext context) {
     return LabeledSectionCard(
       title: title,
       dividerIndent: 56,
-      children: [for (final log in logs) _CallLogTile(log: log)],
+      children: [
+        for (final log in logs) _CallLogTile(log: log, onTap: onLogTap),
+      ],
     );
   }
 }
 
 class _CallLogTile extends StatelessWidget {
-  const _CallLogTile({required this.log});
+  const _CallLogTile({required this.log, this.onTap});
 
   final CallLog log;
+  final ValueChanged<CallLog>? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xl,
-        vertical: AppSpacing.xl,
-      ),
-      child: Row(
-        children: [
-          Icon(
-            log.isOutgoing ? Icons.call_made : Icons.call_received,
-            size: 20,
-            color:
-                log.isOutgoing ? AppColors.safeGreenAlt : AppColors.textMuted,
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Text(
-              log.name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+    return InkWell(
+      onTap: onTap == null ? null : () => onTap!(log),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.xl,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              log.isOutgoing ? Icons.call_made : Icons.call_received,
+              size: 20,
+              color: log.isOutgoing
+                  ? AppColors.safeGreenAlt
+                  : AppColors.textMuted,
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Text(
+                log.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

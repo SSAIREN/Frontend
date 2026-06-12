@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
@@ -111,7 +112,13 @@ class RecentsScreen extends StatelessWidget {
               const ScreenActionIcons(showSort: true),
               const SizedBox(height: AppSpacing.xl),
               for (final entry in sections.entries) ...[
-                CallLogSection(title: entry.key, logs: entry.value),
+                CallLogSection(
+                  title: entry.key,
+                  logs: entry.value,
+                  // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
+                  onLogTap: (_) =>
+                      Navigator.of(context).pushNamed(RoutePaths.calling),
+                ),
                 const SizedBox(height: AppSpacing.xl),
               ],
             ],
