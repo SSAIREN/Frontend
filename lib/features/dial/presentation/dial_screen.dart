@@ -3,6 +3,7 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
+import 'package:ssairen/core/widgets/screen_action_icons.dart';
 import 'package:ssairen/features/dial/widgets/dial_keypad.dart';
 
 class DialScreen extends StatefulWidget {
@@ -39,39 +40,7 @@ class _DialScreenState extends State<DialScreen> {
                 AppSpacing.screenPadding,
                 0,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  const Icon(
-                    Icons.search,
-                    size: 26,
-                    color: AppColors.textHeading,
-                  ),
-                  const SizedBox(width: AppSpacing.xl),
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.more_vert,
-                        size: 26,
-                        color: AppColors.textHeading,
-                      ),
-                      Positioned(
-                        top: -2,
-                        right: -4,
-                        child: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: const BoxDecoration(
-                            color: AppColors.alertOrange,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              child: const ScreenActionIcons(),
             ),
             Expanded(
               child: Center(

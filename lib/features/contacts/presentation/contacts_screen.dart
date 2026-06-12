@@ -3,6 +3,7 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
+import 'package:ssairen/core/widgets/screen_action_icons.dart';
 import 'package:ssairen/features/contacts/widgets/contact_pill_card.dart';
 import 'package:ssairen/features/contacts/widgets/contact_section.dart';
 import 'package:ssairen/models/contact.dart';
@@ -95,7 +96,7 @@ class ContactsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 30),
-              const _ActionIcons(showAdd: true),
+              const ScreenActionIcons(showAdd: true),
               const SizedBox(height: AppSpacing.xl),
               const ContactPillCard(
                 label: '즐겨찾는 연락처 추가',
@@ -143,50 +144,6 @@ class ContactsScreen extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentTab: MainTab.contacts),
-    );
-  }
-}
-
-/// 우측 정렬된 액션 아이콘 묶음 (+, 검색, 더보기+알림 점).
-class _ActionIcons extends StatelessWidget {
-  const _ActionIcons({this.showAdd = false});
-
-  final bool showAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (showAdd) ...[
-          const Icon(Icons.add, size: 26, color: AppColors.textHeading),
-          const SizedBox(width: AppSpacing.xl),
-        ],
-        const Icon(Icons.search, size: 26, color: AppColors.textHeading),
-        const SizedBox(width: AppSpacing.xl),
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const Icon(
-              Icons.more_vert,
-              size: 26,
-              color: AppColors.textHeading,
-            ),
-            Positioned(
-              top: -2,
-              right: -4,
-              child: Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: AppColors.alertOrange,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }
