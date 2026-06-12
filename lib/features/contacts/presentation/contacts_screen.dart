@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
@@ -9,11 +10,11 @@ import 'package:ssairen/models/contact.dart';
 class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key});
 
-  // TODO: 기기 연락처 연동 후 실제 데이터로 교체
   static const _contacts = [
-    Contact(name: '강민우', phoneNumber: '010-1111-2222'),
-    Contact(name: '고영진', phoneNumber: '010-2222-3333'),
-    Contact(name: '김학수 사장님', phoneNumber: '010-3333-4444'),
+    Contact(name: '팀 싸이렌', phoneNumber: '010-8765-4321'),
+    Contact(name: '강땡땡', phoneNumber: '010-1111-2222'),
+    Contact(name: '고땡땡', phoneNumber: '010-2222-3333'),
+    Contact(name: '구땡땡', phoneNumber: '010-3333-4444'),
     Contact(name: '김땡땡', phoneNumber: '010-4444-5555'),
     Contact(name: '박땡땡', phoneNumber: '010-5555-6666'),
     Contact(name: '이땡땡', phoneNumber: '010-6666-7777'),
@@ -85,7 +86,7 @@ class ContactsScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               const Text(
                 // TODO: 연락처 연동 후 실제 개수로 교체
-                '전화번호가 저장된 연락처 187개',
+                '전화번호가 저장된 연락처 8개',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
@@ -128,7 +129,13 @@ class ContactsScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xxl),
               for (final entry in sections.entries) ...[
-                ContactSection(title: entry.key, contacts: entry.value),
+                ContactSection(
+                  title: entry.key,
+                  contacts: entry.value,
+                  // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
+                  onContactTap: (_) =>
+                      Navigator.of(context).pushNamed(RoutePaths.calling),
+                ),
                 const SizedBox(height: AppSpacing.xl),
               ],
             ],

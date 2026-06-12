@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/router/app_router.dart';
+import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 
 class HarmfulDashboardScreen extends StatelessWidget {
@@ -29,7 +31,10 @@ class HarmfulDashboardScreen extends StatelessWidget {
                 const _PoliceStatusCard(),
                 const SizedBox(height: 28),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(context).maybePop(),
+                  // 전화 끊기 = 상황 종료 → 대응 완료 화면으로 이동
+                  onPressed: () => Navigator.of(context).pushReplacement(
+                    AppRouter.fadeRoute(RoutePaths.harmfulDone),
+                  ),
                   icon: const Icon(Icons.call_end, size: 22),
                   label: const Text('전화 끊기'),
                   style: FilledButton.styleFrom(
