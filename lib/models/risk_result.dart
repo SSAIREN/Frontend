@@ -8,9 +8,9 @@ enum RiskLevel {
   danger;
 
   factory RiskLevel.fromPercent(int percent) {
-    if (percent <= 30) return RiskLevel.safe;
-    if (percent <= 50) return RiskLevel.caution;
-    if (percent <= 80) return RiskLevel.warning;
+    if (percent <= 40) return RiskLevel.safe;
+    if (percent <= 55) return RiskLevel.caution;
+    if (percent <= 75) return RiskLevel.warning;
     return RiskLevel.danger;
   }
 

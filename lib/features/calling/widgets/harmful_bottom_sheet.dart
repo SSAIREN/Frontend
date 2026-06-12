@@ -6,10 +6,14 @@ import 'package:ssairen/features/calling/widgets/risk_analysis_card.dart';
 class HarmfulBottomSheet extends StatelessWidget {
   const HarmfulBottomSheet({
     required this.percent,
+    required this.aiSummary,
+    required this.keywords,
     super.key,
   });
 
   final int percent;
+  final String aiSummary;
+  final List<String> keywords;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +58,7 @@ class HarmfulBottomSheet extends StatelessWidget {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '가족 협박형 보이스피싱이 감지됐어요',
+                      '높은 확률로 보이스피싱이에요',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 17,
@@ -65,18 +69,28 @@ class HarmfulBottomSheet extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _DangerTag(label: '납치'),
-                  SizedBox(width: 8),
-                  _DangerTag(label: '아들'),
-                  SizedBox(width: 8),
-                  _DangerTag(label: '입금'),
-                ],
+              RiskAnalysisCard(percent: percent),
+              const SizedBox(height: 22),
+              Text(
+                aiSummary,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontSize: 14,
+                  height: 1.42,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 12),
-              RiskAnalysisCard(percent: percent),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final keyword in _visibleKeywords)
+                    _DangerTag(label: keyword),
+                ],
+              ),
               const SizedBox(height: 18),
               const _ResponsePlanCard(),
               const SizedBox(height: 18),
@@ -113,6 +127,11 @@ class HarmfulBottomSheet extends StatelessWidget {
       ),
     );
   }
+
+  List<String> get _visibleKeywords {
+    if (keywords.isEmpty) return const ['납치', '아들', '입금'];
+    return keywords;
+  }
 }
 
 class _DangerTag extends StatelessWidget {
@@ -125,8 +144,11 @@ class _DangerTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
+        color: const Color(0xFFE2451F).withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: const Color(0xFFE03B22).withValues(alpha: 0.3),
+        ),
       ),
       child: Text(
         label,
@@ -186,21 +208,18 @@ class _ResponsePlanCard extends StatelessWidget {
           SizedBox(height: 24),
           _PlanStep(
             number: '1',
-            icon: Icons.location_on_outlined,
             text: '아들 현재 위치 확인',
             description: '휴대폰 GPS를 기반으로 안전 여부를 즉시 파악합니다.',
           ),
           SizedBox(height: 14),
           _PlanStep(
             number: '2',
-            icon: Icons.notifications_active_outlined,
             text: '아들에게 지속 알림 발송',
             description: '전화 및 긴급 메시지를 통해 아들과의 직접 연결을 시도합니다.',
           ),
           SizedBox(height: 14),
           _PlanStep(
             number: '3',
-            icon: Icons.gpp_good_outlined,
             text: '경찰과 실시간 상황 공유',
             description: '사기 정황과 통화 자료를 실시간으로 관제센터에 전송합니다.',
           ),
@@ -264,13 +283,11 @@ class _ProtectedTarget extends StatelessWidget {
 class _PlanStep extends StatelessWidget {
   const _PlanStep({
     required this.number,
-    required this.icon,
     required this.text,
     required this.description,
   });
 
   final String number;
-  final IconData icon;
   final String text;
   final String description;
 
@@ -294,21 +311,13 @@ class _PlanStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(icon, color: AppColors.brandBlue, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 5),
               Text(

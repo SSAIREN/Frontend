@@ -5,12 +5,16 @@ import 'package:ssairen/features/calling/widgets/risk_analysis_card.dart';
 class SuspiciousBottomSheet extends StatelessWidget {
   const SuspiciousBottomSheet({
     required this.percent,
+    required this.aiSummary,
+    required this.keywords,
     this.onEndCall,
     this.onContinue,
     super.key,
   });
 
   final int percent;
+  final String aiSummary;
+  final List<String> keywords;
   final VoidCallback? onEndCall;
   final VoidCallback? onContinue;
 
@@ -67,25 +71,22 @@ class SuspiciousBottomSheet extends StatelessWidget {
             RiskAnalysisCard(percent: percent),
             const SizedBox(height: 22),
             Text(
-              '보이스피싱에서 자주 쓰는 표현이 감지됐어요.\n'
-              '실제 검사나 경찰은 계좌 정보를 요구하지 않아요.',
+              aiSummary,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.82),
-                fontSize: 16,
-                height: 1.5,
+                fontSize: 14,
+                height: 1.42,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 12),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                _Tag(label: '검사'),
-                SizedBox(width: 8),
-                _Tag(label: '수사'),
-                SizedBox(width: 8),
-                _Tag(label: '입금'),
+                for (final keyword in _visibleKeywords) _Tag(label: keyword),
               ],
             ),
             const SizedBox(height: 24),
@@ -118,6 +119,11 @@ class SuspiciousBottomSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<String> get _visibleKeywords {
+    if (keywords.isEmpty) return const ['검사', '수사', '입금'];
+    return keywords.take(3).toList();
   }
 }
 
