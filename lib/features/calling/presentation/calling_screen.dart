@@ -504,14 +504,8 @@ class _CallingScreenState extends State<CallingScreen> {
         keywords: response.keywords,
         phishingType: response.phishingType,
       );
-      if (response.shouldOpenWebSocket && !_debugStopAtWarningBranch) {
+      if (response.shouldOpenWebSocket) {
         _connectWebSocket(session);
-      } else if (response.shouldOpenWebSocket) {
-        debugPrint(
-          '[REST_ANALYZE][DECISION] '
-          'shouldOpenWebSocket=true, but warning branch debug mode keeps '
-          'WebSocket closed for this check.',
-        );
       }
       _handleAnalysisRisk(response.riskScore);
     } catch (error, stackTrace) {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ssairen/core/theme/app_colors.dart';
 
 enum RiskLevel {
   safe,

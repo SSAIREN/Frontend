@@ -99,7 +99,8 @@ class SessionReadyData {
 
   factory SessionReadyData.fromEvent(SocketEvent event) {
     return SessionReadyData(
-      nextTranscriptSequence: event.data['nextTranscriptSequence'] as int,
+      nextTranscriptSequence:
+          (event.data['nextTranscriptSequence'] as num?)?.toInt() ?? 1,
     );
   }
 }
@@ -124,14 +125,15 @@ class AnalysisResultData {
   final String provider;
 
   factory AnalysisResultData.fromEvent(SocketEvent event) {
+    final data = event.data;
     return AnalysisResultData(
-      chunkId: event.data['chunkId'] as String,
-      sequence: event.data['sequence'] as int,
-      riskScore: event.data['riskScore'] as int,
-      phishingType: event.data['phishingType'] as String,
-      aiSummary: event.data['aiSummary'] as String,
-      keywords: (event.data['keywords'] as List<dynamic>).cast<String>(),
-      provider: event.data['provider'] as String,
+      chunkId: data['chunkId'] as String? ?? '',
+      sequence: (data['sequence'] as num?)?.toInt() ?? 0,
+      riskScore: (data['riskScore'] as num?)?.toInt() ?? 0,
+      phishingType: data['phishingType'] as String? ?? 'NONE',
+      aiSummary: data['aiSummary'] as String? ?? '',
+      keywords: (data['keywords'] as List<dynamic>?)?.cast<String>() ?? const [],
+      provider: data['provider'] as String? ?? '',
     );
   }
 }
