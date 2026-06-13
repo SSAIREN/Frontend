@@ -35,7 +35,6 @@ dependencies:
 
   # HTTP 통신
   dio: ^5.8.0
-  flutter_dotenv: ^5.2.1
 
   # WebSocket (실시간 위험도 수신, 툴 실행 결과)
   web_socket_channel: ^3.0.2
@@ -58,6 +57,12 @@ dependencies:
 
   # SVG 렌더링 (온보딩 아이콘)
   flutter_svg: ^2.0.17
+
+  # 카카오맵 (납치협박 대시보드 보호 대상자 위치 표시, WebView 기반)
+  kakao_map_plugin: ^0.3.4
+
+  # .env 환경변수 로드 (API 키 등)
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -82,10 +87,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - .env
     - assets/onboarding/
     - assets/icons/
     - assets/
+    - .env
 
 flutter_launcher_icons:
   android: true
