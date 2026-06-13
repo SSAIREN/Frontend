@@ -8,12 +8,16 @@ class HarmfulBottomSheet extends StatelessWidget {
     required this.percent,
     required this.aiSummary,
     required this.keywords,
+    this.onRunPlan,
+    this.onEndCall,
     super.key,
   });
 
   final int percent;
   final String aiSummary;
   final List<String> keywords;
+  final VoidCallback? onRunPlan;
+  final VoidCallback? onEndCall;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +62,7 @@ class HarmfulBottomSheet extends StatelessWidget {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '높은 확률로 보이스피싱이에요',
+                      '가족 협박형 보이스피싱이 감지됐어요',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 17,
@@ -72,7 +76,7 @@ class HarmfulBottomSheet extends StatelessWidget {
               RiskAnalysisCard(percent: percent),
               const SizedBox(height: 22),
               Text(
-                aiSummary,
+                _visibleSummary,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.82),
@@ -95,10 +99,13 @@ class HarmfulBottomSheet extends StatelessWidget {
               const _ResponsePlanCard(),
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed(RoutePaths.harmfulDashboard);
-                },
+                onPressed: onRunPlan ??
+                    () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushNamed(
+                        RoutePaths.harmfulDashboard,
+                      );
+                    },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brandBlue,
                   foregroundColor: Colors.white,
@@ -107,13 +114,13 @@ class HarmfulBottomSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('확인'),
+                child: const Text('AI 계획 실행'),
               ),
               const SizedBox(height: 10),
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: onEndCall ?? () => Navigator.of(context).pop(),
                 child: const Text(
-                  '괜찮아요',
+                  '전화끊기',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -126,6 +133,11 @@ class HarmfulBottomSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String get _visibleSummary {
+    if (aiSummary.trim().isNotEmpty) return aiSummary;
+    return '가족을 사칭한 협박과 입금 유도 표현이 감지되었습니다.';
   }
 
   List<String> get _visibleKeywords {
@@ -215,13 +227,13 @@ class _ResponsePlanCard extends StatelessWidget {
           _PlanStep(
             number: '2',
             text: '아들에게 지속 알림 발송',
-            description: '전화 및 긴급 메시지를 통해 아들과의 직접 연결을 시도합니다.',
+            description: '전화 및 긴급 메시지를 통해 직접 연결을 시도합니다.',
           ),
           SizedBox(height: 14),
           _PlanStep(
             number: '3',
             text: '경찰과 실시간 상황 공유',
-            description: '사기 정황과 통화 자료를 실시간으로 관제센터에 전송합니다.',
+            description: '사기 정황과 통화 자료를 관계 센터에 전송합니다.',
           ),
         ],
       ),

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ssairen/core/config/api_config.dart';
@@ -71,12 +69,6 @@ class AnalyzeApiService {
       throw StateError(_formatDioError('Transcript analysis failed', error));
     }
 
-    _logResponse(
-      title: '[REST_ANALYZE]',
-      statusCode: response.statusCode,
-      data: response.data,
-    );
-
     final data = _extractPayload(response.data);
     if (data == null) {
       throw const FormatException('Transcript analysis response body is empty.');
@@ -104,26 +96,8 @@ class AnalyzeApiService {
         '${responseData ?? error.message}';
   }
 
-  void _logResponse({
-    required String title,
-    required int? statusCode,
-    required Object? data,
-  }) {
-    debugPrint('$title[RESPONSE_STATUS] $statusCode');
-    debugPrint('$title[RESPONSE_BODY_RAW]\n${_prettyJson(data)}');
-  }
-
   void _logDioError(String title, DioException error) {
     debugPrint('$title status=${error.response?.statusCode}');
-    debugPrint('$title body\n${_prettyJson(error.response?.data)}');
-  }
-
-  String _prettyJson(Object? value) {
-    if (value == null) return 'null';
-    try {
-      return const JsonEncoder.withIndent('  ').convert(value);
-    } catch (_) {
-      return value.toString();
-    }
+    debugPrint('$title body\n${error.response?.data ?? 'null'}');
   }
 }
