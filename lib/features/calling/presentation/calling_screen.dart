@@ -32,9 +32,8 @@ class _CallingScreenState extends State<CallingScreen> {
   String _phoneNumber = '01087654321';
   bool _initialized = false;
   static const _debugStopAtWarningBranch = false;
-  static const _debugSendHardcodedTranscriptOnly = false;
   static const _audioChunkDuration = Duration(seconds: 5);
-  static const _debugOverrideTranscriptText = '';
+  static const _hapticsChannel = MethodChannel('ssairen/haptics');
 
   final _analyzeApiService = AnalyzeApiService();
   final _audioRecorderService = AudioChunkRecorderService();
@@ -211,11 +210,7 @@ class _CallingScreenState extends State<CallingScreen> {
       _logStt(
         'SESSION READY: ${session.sessionId}, next=${session.nextTranscriptSequence}',
       );
-      if (_debugSendHardcodedTranscriptOnly) {
-        _sendHardcodedTranscriptForDebug(session);
-      } else {
-        _startTranscriptAnalysis();
-      }
+      _startTranscriptAnalysis();
     } catch (error, stackTrace) {
       _logStt('SESSION ERROR: $error');
       debugPrint('Failed to create call session: $error');
@@ -245,21 +240,6 @@ class _CallingScreenState extends State<CallingScreen> {
   void _startTranscriptAnalysis() {
     _shouldRunTranscriptLoop = true;
     unawaited(_runTranscriptLoop());
-  }
-
-  void _sendHardcodedTranscriptForDebug(CallSession session) {
-    _stopTranscriptAnalysis();
-    debugPrint(
-      '[REST_ANALYZE][DEBUG_HARDCODED_TEXT] '
-      'sessionId=${session.sessionId}, text="$_debugOverrideTranscriptText"',
-    );
-    _enqueueTranscriptAnalysis(
-      session: session,
-      sequence: _nextTranscriptSequence,
-      text: _debugOverrideTranscriptText,
-      startedAtMs: 0,
-      endedAtMs: _audioChunkDuration.inMilliseconds,
-    );
   }
 
   void _stopTranscriptAnalysis() {
@@ -371,16 +351,7 @@ class _CallingScreenState extends State<CallingScreen> {
         'TEXT: stt=$sttSequence, whisper=${whisperElapsedMs}ms, "$text"',
       );
 
-      final transcriptText = _debugOverrideTranscriptText.isNotEmpty
-          ? _debugOverrideTranscriptText
-          : text;
-      if (_debugOverrideTranscriptText.isNotEmpty) {
-        debugPrint(
-          '[STT][TEXT_OVERRIDE] stt=$sttSequence, text="$transcriptText"',
-        );
-      }
-
-      if (transcriptText.isEmpty) {
+      if (text.isEmpty) {
         _logStt('SKIP: empty text. stt=$sttSequence');
         return;
       }
@@ -390,7 +361,7 @@ class _CallingScreenState extends State<CallingScreen> {
       _enqueueTranscriptAnalysis(
         session: pending.session,
         sequence: analysisSequence,
-        text: transcriptText,
+        text: text,
         startedAtMs: chunkIndex * _audioChunkDuration.inMilliseconds,
         endedAtMs: (chunkIndex + 1) * _audioChunkDuration.inMilliseconds,
       );
@@ -862,10 +833,18 @@ class _CallingScreenState extends State<CallingScreen> {
 
   Future<void> _vibrateForRisk(RiskLevel level) async {
     final count = level == RiskLevel.danger ? 2 : 1;
-    for (var i = 0; i < count; i += 1) {
-      await HapticFeedback.vibrate();
-      if (i < count - 1) {
-        await Future<void>.delayed(const Duration(milliseconds: 160));
+    try {
+      await _hapticsChannel.invokeMethod<void>('riskVibrate', {
+        'count': count,
+      });
+      debugPrint('[RISK_VIBRATION] native count=$count');
+    } catch (error) {
+      debugPrint('[RISK_VIBRATION][FALLBACK] $error');
+      for (var i = 0; i < count; i += 1) {
+        await HapticFeedback.vibrate();
+        if (i < count - 1) {
+          await Future<void>.delayed(const Duration(milliseconds: 160));
+        }
       }
     }
   }
