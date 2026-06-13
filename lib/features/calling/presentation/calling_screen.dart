@@ -83,33 +83,54 @@ class _CallingScreenState extends State<CallingScreen> {
     return Scaffold(
       body: CallGradientBackground(
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(21, 16, 21, 24),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.sizeOf(context).height -
-                    MediaQuery.paddingOf(context).vertical -
-                    40,
-              ),
-              child: Column(
-                children: [
-                  _CallingTopBar(elapsed: _callElapsed),
-                  const SizedBox(height: 38),
-                  _CallHeader(phoneNumber: _phoneNumber),
-                  const SizedBox(height: 42),
-                  GestureDetector(
-                    onTap: _sendNextMockTranscript,
-                    child: RiskMonitorPanel(percent: _riskPercent),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxHeight < 720;
+              final padding = EdgeInsets.fromLTRB(
+                21,
+                isCompact ? 10 : 16,
+                21,
+                isCompact ? 16 : 24,
+              );
+
+              return SingleChildScrollView(
+                padding: padding,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - padding.vertical,
                   ),
-                  const SizedBox(height: 28),
-                  const _ControlGrid(),
-                  const SizedBox(height: 34),
-                  _EndCallButton(
-                    onPressed: _handleEndCall,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _CallingTopBar(elapsed: _callElapsed),
+                          SizedBox(height: isCompact ? 24 : 38),
+                          _CallHeader(phoneNumber: _phoneNumber),
+                        ],
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(height: isCompact ? 24 : 34),
+                          GestureDetector(
+                            onTap: _sendNextMockTranscript,
+                            child: RiskMonitorPanel(percent: _riskPercent),
+                          ),
+                          SizedBox(height: isCompact ? 20 : 28),
+                          _ControlGrid(isCompact: isCompact),
+                          SizedBox(height: isCompact ? 24 : 34),
+                          _EndCallButton(
+                            onPressed: _handleEndCall,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -562,25 +583,67 @@ class _CallHeader extends StatelessWidget {
 }
 
 class _ControlGrid extends StatelessWidget {
-  const _ControlGrid();
+  const _ControlGrid({required this.isCompact});
+
+  final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      mainAxisSpacing: 28,
-      crossAxisSpacing: 45,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 0.82,
-      children: const [
-        CallControlButton(icon: Icons.voicemail, label: '녹음'),
-        CallControlButton(icon: Icons.mic_off_outlined, label: '내 소리 차단'),
-        CallControlButton(icon: Icons.bluetooth, label: '블루투스'),
-        CallControlButton(icon: Icons.volume_up_outlined, label: '스피커'),
-        CallControlButton(icon: Icons.dialpad, label: '키패드'),
-        CallControlButton(icon: Icons.more_vert, label: '더 보기'),
+    final rowGap = isCompact ? 18.0 : 28.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _ControlButtonSlot(
+              child: CallControlButton(icon: Icons.voicemail, label: '녹음'),
+            ),
+            _ControlButtonSlot(
+              child: CallControlButton(
+                icon: Icons.mic_off_outlined,
+                label: '내 소리 차단',
+              ),
+            ),
+            _ControlButtonSlot(
+              child: CallControlButton(icon: Icons.bluetooth, label: '블루투스'),
+            ),
+          ],
+        ),
+        SizedBox(height: rowGap),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _ControlButtonSlot(
+              child: CallControlButton(
+                icon: Icons.volume_up_outlined,
+                label: '스피커',
+              ),
+            ),
+            _ControlButtonSlot(
+              child: CallControlButton(icon: Icons.dialpad, label: '키패드'),
+            ),
+            _ControlButtonSlot(
+              child: CallControlButton(icon: Icons.more_vert, label: '더 보기'),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class _ControlButtonSlot extends StatelessWidget {
+  const _ControlButtonSlot({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 92,
+      child: child,
     );
   }
 }
