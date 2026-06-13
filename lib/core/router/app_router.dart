@@ -11,6 +11,7 @@ import 'package:ssairen/features/onboarding/presentation/onboarding_done_screen.
 import 'package:ssairen/features/onboarding/presentation/onboarding_family_screen.dart';
 import 'package:ssairen/features/onboarding/presentation/onboarding_location_screen.dart';
 import 'package:ssairen/features/onboarding/presentation/onboarding_mic_screen.dart';
+import 'package:ssairen/features/onboarding/presentation/onboarding_notification_screen.dart';
 import 'package:ssairen/features/recents/presentation/recents_screen.dart';
 import 'package:ssairen/features/result/presentation/police_share_screen.dart';
 import 'package:ssairen/features/result/presentation/receipt_done_screen.dart';
@@ -22,6 +23,8 @@ abstract final class AppRouter {
       RoutePaths.splash: (_) => const SplashScreen(),
       RoutePaths.onboardingMic: (_) => const OnboardingMicScreen(),
       RoutePaths.onboardingContacts: (_) => const OnboardingContactsScreen(),
+      RoutePaths.onboardingNotification: (_) =>
+          const OnboardingNotificationScreen(),
       RoutePaths.onboardingFamily: (_) => const OnboardingFamilyScreen(),
       RoutePaths.onboardingLocation: (_) => const OnboardingLocationScreen(),
       RoutePaths.onboardingDone: (_) => const OnboardingDoneScreen(),

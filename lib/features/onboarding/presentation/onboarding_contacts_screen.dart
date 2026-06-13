@@ -16,7 +16,7 @@ class OnboardingContactsScreen extends StatelessWidget {
       onButtonPressed: () => requestPermissionAndContinue(
         context: context,
         request: (service) => service.requestContacts(),
-        nextRoute: RoutePaths.onboardingFamily,
+        nextRoute: RoutePaths.onboardingNotification,
         settingsMessage: '위험 전화 감지 시 가족에게 알리기 위해 연락처 권한이 필요해요. 설정에서 허용해주세요.',
       ),
       child: PermissionCard(

@@ -5,7 +5,7 @@ import 'package:ssairen/core/theme/app_spacing.dart';
 class OnboardingStepHeader extends StatelessWidget {
   const OnboardingStepHeader({
     required this.currentStep,
-    this.totalSteps = 4,
+    this.totalSteps = 5,
     super.key,
   });
 

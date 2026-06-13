@@ -3,8 +3,9 @@ abstract final class RoutePaths {
 
   static const onboardingMic = '/onboarding/1';
   static const onboardingContacts = '/onboarding/2';
-  static const onboardingFamily = '/onboarding/3';
-  static const onboardingLocation = '/onboarding/4';
+  static const onboardingNotification = '/onboarding/3';
+  static const onboardingFamily = '/onboarding/4';
+  static const onboardingLocation = '/onboarding/5';
   static const onboardingDone = '/onboarding/done';
 
   static const home = '/home';
