@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:ssairen/core/config/api_config.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
@@ -10,7 +13,7 @@ class AnalyzeApiService {
               BaseOptions(
                 baseUrl: ApiConfig.baseUrl,
                 connectTimeout: const Duration(seconds: 5),
-                receiveTimeout: const Duration(seconds: 8),
+                receiveTimeout: const Duration(seconds: 60),
                 headers: const {
                   Headers.contentTypeHeader: Headers.jsonContentType,
                 },
@@ -27,12 +30,17 @@ class AnalyzeApiService {
       return CallSession.mock(request);
     }
 
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/api/mobile/call-sessions',
-      data: request.toJson(),
-    );
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await _dio.post<Map<String, dynamic>>(
+        '/api/mobile/call-sessions',
+        data: request.toJson(),
+      );
+    } on DioException catch (error) {
+      throw StateError(_formatDioError('Call session request failed', error));
+    }
 
-    final data = response.data;
+    final data = _extractPayload(response.data);
     if (data == null) {
       throw const FormatException('Call session response body is empty.');
     }
@@ -52,16 +60,70 @@ class AnalyzeApiService {
       );
     }
 
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/api/mobile/call-sessions/$sessionId/transcripts/analyze',
-      data: request.toJson(),
+    final Response<Map<String, dynamic>> response;
+    try {
+      response = await _dio.post<Map<String, dynamic>>(
+        '/api/mobile/call-sessions/$sessionId/transcripts/analyze',
+        data: request.toJson(),
+      );
+    } on DioException catch (error) {
+      _logDioError('[REST_ANALYZE][ERROR_RESPONSE]', error);
+      throw StateError(_formatDioError('Transcript analysis failed', error));
+    }
+
+    _logResponse(
+      title: '[REST_ANALYZE]',
+      statusCode: response.statusCode,
+      data: response.data,
     );
 
-    final data = response.data;
+    final data = _extractPayload(response.data);
     if (data == null) {
       throw const FormatException('Transcript analysis response body is empty.');
     }
 
-    return TranscriptAnalyzeResponse.fromJson(data);
+    return TranscriptAnalyzeResponse.fromJson(
+      data,
+      fallbackSessionId: sessionId,
+      fallbackRequest: request,
+    );
+  }
+
+  Map<String, dynamic>? _extractPayload(Map<String, dynamic>? body) {
+    if (body == null) return null;
+    final data = body['data'];
+    if (data is Map<String, dynamic>) return data;
+    return body;
+  }
+
+  String _formatDioError(String message, DioException error) {
+    final statusCode = error.response?.statusCode;
+    final responseData = error.response?.data;
+    return '$message'
+        '${statusCode == null ? '' : ' ($statusCode)'}: '
+        '${responseData ?? error.message}';
+  }
+
+  void _logResponse({
+    required String title,
+    required int? statusCode,
+    required Object? data,
+  }) {
+    debugPrint('$title[RESPONSE_STATUS] $statusCode');
+    debugPrint('$title[RESPONSE_BODY_RAW]\n${_prettyJson(data)}');
+  }
+
+  void _logDioError(String title, DioException error) {
+    debugPrint('$title status=${error.response?.statusCode}');
+    debugPrint('$title body\n${_prettyJson(error.response?.data)}');
+  }
+
+  String _prettyJson(Object? value) {
+    if (value == null) return 'null';
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
   }
 }

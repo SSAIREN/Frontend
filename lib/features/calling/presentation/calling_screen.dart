@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:ssairen/core/config/api_config.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/calling/widgets/call_control_button.dart';
@@ -34,6 +37,8 @@ class _CallingScreenState extends State<CallingScreen> {
   final _audioRecorderService = AudioChunkRecorderService();
   final _whisperSttService = WhisperSttService();
   final _webSocketService = WebSocketService();
+  final Queue<_PendingTranscriptAnalysis> _analysisQueue =
+      Queue<_PendingTranscriptAnalysis>();
   Timer? _callDurationTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
   Duration _callElapsed = Duration.zero;
@@ -51,6 +56,7 @@ class _CallingScreenState extends State<CallingScreen> {
   bool _shouldRunTranscriptLoop = false;
   bool _isTranscriptLoopRunning = false;
   bool _isProcessingAudioChunk = false;
+  bool _isAnalysisQueueRunning = false;
   CallSession? _callSession;
 
   @override
@@ -159,11 +165,14 @@ class _CallingScreenState extends State<CallingScreen> {
       externalCallId: 'device-call-${startedAt.microsecondsSinceEpoch}',
       deviceId: 'victim-device-001',
       startedAt: startedAt,
-      phoneNumber: _phoneNumber,
+      phoneNumber: _normalizedPhoneNumber,
       victim: const CallSessionVictim(name: '김영희', age: 71),
     );
 
     try {
+      _logStt(
+        'SESSION START: mock=${ApiConfig.useMockApi}, baseUrl=${ApiConfig.baseUrl}',
+      );
       debugPrint(
         '[CALL_SESSION][REQUEST] '
         'userId=${request.userId}, '
@@ -171,6 +180,10 @@ class _CallingScreenState extends State<CallingScreen> {
         'deviceId=${request.deviceId}, '
         'phoneNumber=${request.phoneNumber}, '
         'victim=${request.victim.name}/${request.victim.age}',
+      );
+      _logApiJson(
+        title: '[CALL_SESSION][REQUEST_BODY]',
+        json: request.toJson(),
       );
       final session = await _analyzeApiService.createCallSession(request);
       if (!mounted) return;
@@ -186,8 +199,16 @@ class _CallingScreenState extends State<CallingScreen> {
         'nextSequence=${session.nextTranscriptSequence}, '
         'webSocketUrl=${session.webSocketUrl}',
       );
+      _logApiJson(
+        title: '[CALL_SESSION][RESPONSE_BODY]',
+        json: session.toJson(),
+      );
+      _logStt(
+        'SESSION READY: ${session.sessionId}, next=${session.nextTranscriptSequence}',
+      );
       _startTranscriptAnalysis();
     } catch (error, stackTrace) {
+      _logStt('SESSION ERROR: $error');
       debugPrint('Failed to create call session: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
@@ -207,6 +228,11 @@ class _CallingScreenState extends State<CallingScreen> {
     Navigator.of(context).maybePop();
   }
 
+  String get _normalizedPhoneNumber {
+    final digits = _phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.isEmpty ? _phoneNumber : digits;
+  }
+
   void _startTranscriptAnalysis() {
     _shouldRunTranscriptLoop = true;
     unawaited(_runTranscriptLoop());
@@ -214,6 +240,7 @@ class _CallingScreenState extends State<CallingScreen> {
 
   void _stopTranscriptAnalysis() {
     _shouldRunTranscriptLoop = false;
+    _analysisQueue.clear();
     unawaited(_audioRecorderService.cancel());
   }
 
@@ -271,7 +298,7 @@ class _CallingScreenState extends State<CallingScreen> {
         return;
       }
 
-      await _sendTranscriptText(
+      _enqueueTranscriptAnalysis(
         session: session,
         sequence: analysisSequence,
         text: text,
@@ -299,13 +326,13 @@ class _CallingScreenState extends State<CallingScreen> {
     });
   }
 
-  Future<void> _sendTranscriptText({
+  void _enqueueTranscriptAnalysis({
     required CallSession session,
     required int sequence,
     required String text,
     required int startedAtMs,
     required int endedAtMs,
-  }) async {
+  }) {
     final request = TranscriptAnalyzeRequest(
       chunkId: 'chunk-${sequence.toString().padLeft(3, '0')}',
       sequence: sequence,
@@ -314,19 +341,58 @@ class _CallingScreenState extends State<CallingScreen> {
       endedAtMs: endedAtMs,
     );
 
-    try {
-      if (_isWebSocketConnected) {
-        _webSocketService.sendTranscriptChunk(
-          sessionId: session.sessionId,
-          request: request,
-        );
-        debugPrint('Transcript sent via WebSocket: sequence=$sequence');
-        return;
-      }
+    _reserveTranscriptSequence(sequence);
 
+    if (_isWebSocketConnected) {
+      _webSocketService.sendTranscriptChunk(
+        sessionId: session.sessionId,
+        request: request,
+      );
+      debugPrint('Transcript sent via WebSocket: sequence=$sequence');
+      return;
+    }
+
+    _analysisQueue.add(
+      _PendingTranscriptAnalysis(
+        session: session,
+        request: request,
+      ),
+    );
+    debugPrint(
+      '[REST_ANALYZE][QUEUE_PUSH] '
+      'sequence=$sequence, pending=${_analysisQueue.length}',
+    );
+    unawaited(_drainAnalysisQueue());
+  }
+
+  Future<void> _drainAnalysisQueue() async {
+    if (_isAnalysisQueueRunning) return;
+    _isAnalysisQueueRunning = true;
+
+    try {
+      while (mounted && _shouldRunTranscriptLoop && _analysisQueue.isNotEmpty) {
+        final pending = _analysisQueue.removeFirst();
+        await _sendQueuedTranscriptAnalysis(pending);
+      }
+    } finally {
+      _isAnalysisQueueRunning = false;
+    }
+  }
+
+  Future<void> _sendQueuedTranscriptAnalysis(
+    _PendingTranscriptAnalysis pending,
+  ) async {
+    final session = pending.session;
+    final request = pending.request;
+    final sequence = request.sequence;
+
+    try {
       _logRestAnalyzeRequest(
         sessionId: session.sessionId,
         request: request,
+      );
+      _logStt(
+        'ANALYZE START: sequence=$sequence, pending=${_analysisQueue.length}',
       );
       final response = await _analyzeApiService.analyzeTranscript(
         sessionId: session.sessionId,
@@ -335,6 +401,13 @@ class _CallingScreenState extends State<CallingScreen> {
       if (!mounted) return;
 
       _logRestAnalyzeResponse(response);
+      _logTranscriptSequenceSync(
+        requestedSequence: sequence,
+        response: response,
+      );
+      _logStt(
+        'ANALYZE DONE: score=${response.riskScore}, keywords=${response.keywords}',
+      );
       _applyTranscriptProgress(
         riskScore: response.riskScore,
         nextTranscriptSequence: response.nextTranscriptSequence,
@@ -353,6 +426,8 @@ class _CallingScreenState extends State<CallingScreen> {
       }
       _handleAnalysisRisk(response.riskScore);
     } catch (error, stackTrace) {
+      _advanceTranscriptSequenceAfterFailure(sequence, error);
+      _logStt('ANALYZE ERROR: $error');
       debugPrint('Failed to analyze transcript: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
@@ -372,6 +447,10 @@ class _CallingScreenState extends State<CallingScreen> {
       'isFinal=${request.isFinal}, '
       'text="${request.text}"',
     );
+    _logApiJson(
+      title: '[REST_ANALYZE][REQUEST_BODY]',
+      json: request.toJson(),
+    );
   }
 
   void _logRestAnalyzeResponse(TranscriptAnalyzeResponse response) {
@@ -390,6 +469,74 @@ class _CallingScreenState extends State<CallingScreen> {
       'aiSummary="${response.aiSummary}", '
       'keywords=${response.keywords}',
     );
+    _logApiJson(
+      title: '[REST_ANALYZE][RESPONSE_BODY]',
+      json: response.toJson(),
+    );
+  }
+
+  void _reserveTranscriptSequence(int sequence) {
+    final reservedNextSequence = sequence + 1;
+    if (_nextTranscriptSequence >= reservedNextSequence) return;
+
+    if (mounted) {
+      setState(() {
+        _nextTranscriptSequence = reservedNextSequence;
+      });
+    } else {
+      _nextTranscriptSequence = reservedNextSequence;
+    }
+
+    debugPrint(
+      '[REST_ANALYZE][SEQUENCE_RESERVE] '
+      'sequence=$sequence, reservedNext=$reservedNextSequence',
+    );
+  }
+
+  void _advanceTranscriptSequenceAfterFailure(int sequence, Object error) {
+    if (!error.toString().contains('DUPLICATE_TRANSCRIPT_CONFLICT')) return;
+
+    final nextSequence = sequence + 1;
+    if (_nextTranscriptSequence >= nextSequence) return;
+
+    if (mounted) {
+      setState(() {
+        _nextTranscriptSequence = nextSequence;
+      });
+    } else {
+      _nextTranscriptSequence = nextSequence;
+    }
+
+    debugPrint(
+      '[REST_ANALYZE][SEQUENCE_RECOVER] '
+      'duplicate sequence=$sequence, next=$nextSequence',
+    );
+  }
+
+  void _logTranscriptSequenceSync({
+    required int requestedSequence,
+    required TranscriptAnalyzeResponse response,
+  }) {
+    final expectedNextSequence = requestedSequence + 1;
+    final acceptedMatches = response.acceptedSequence == requestedSequence;
+    final nextMatches = response.nextTranscriptSequence == expectedNextSequence;
+
+    debugPrint(
+      '[REST_ANALYZE][SEQUENCE_SYNC] '
+      'requested=$requestedSequence, '
+      'accepted=${response.acceptedSequence}, '
+      'next=${response.nextTranscriptSequence}, '
+      'acceptedMatches=$acceptedMatches, '
+      'nextMatches=$nextMatches',
+    );
+  }
+
+  void _logApiJson({
+    required String title,
+    required Map<String, dynamic> json,
+  }) {
+    const encoder = JsonEncoder.withIndent('  ');
+    debugPrint('$title\n${encoder.convert(json)}');
   }
 
   void _applyTranscriptProgress({
@@ -401,11 +548,16 @@ class _CallingScreenState extends State<CallingScreen> {
   }) {
     setState(() {
       _riskPercent = riskScore;
-      _nextTranscriptSequence = nextTranscriptSequence;
+      if (nextTranscriptSequence > _nextTranscriptSequence) {
+        _nextTranscriptSequence = nextTranscriptSequence;
+      }
       _latestAiSummary = aiSummary;
       _latestKeywords = keywords;
       _latestPhishingType = phishingType;
-      _lastAcceptedSequence = nextTranscriptSequence - 1;
+      final acceptedSequence = nextTranscriptSequence - 1;
+      if (acceptedSequence > _lastAcceptedSequence) {
+        _lastAcceptedSequence = acceptedSequence;
+      }
     });
   }
 
@@ -567,6 +719,16 @@ class _CallingScreenState extends State<CallingScreen> {
     }
     return const ['납치', '아들', '입금'];
   }
+}
+
+class _PendingTranscriptAnalysis {
+  const _PendingTranscriptAnalysis({
+    required this.session,
+    required this.request,
+  });
+
+  final CallSession session;
+  final TranscriptAnalyzeRequest request;
 }
 
 class _CallingTopBar extends StatelessWidget {

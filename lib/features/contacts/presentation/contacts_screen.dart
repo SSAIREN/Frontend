@@ -100,9 +100,10 @@ class ContactsScreen extends StatelessWidget {
                 ContactSection(
                   title: entry.key,
                   contacts: entry.value,
-                  // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
-                  onContactTap: (_) =>
-                      Navigator.of(context).pushNamed(RoutePaths.calling),
+                  onContactTap: (contact) => Navigator.of(context).pushNamed(
+                    RoutePaths.calling,
+                    arguments: contact.phoneNumber,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
               ],

@@ -90,6 +90,18 @@ class CallSession {
       webSocketUrl: '/ws/v1/victim?sessionId=$sessionId',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sessionId': sessionId,
+      'status': status,
+      'nextTranscriptSequence': nextTranscriptSequence,
+      'accumulatedTranscriptCharacters': accumulatedTranscriptCharacters,
+      'startedAt': startedAt.toIso8601String(),
+      'endedAt': endedAt?.toIso8601String(),
+      'webSocketUrl': webSocketUrl,
+    };
+  }
 }
 
 String _toIso8601Offset(DateTime dateTime) {
