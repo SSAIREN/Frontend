@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
@@ -16,10 +17,7 @@ class OnboardingFamilyScreen extends StatefulWidget {
 }
 
 class _OnboardingFamilyScreenState extends State<OnboardingFamilyScreen> {
-  final List<Guardian> _guardians = [
-    const Guardian(name: '김영희', relationship: '딸'),
-    const Guardian(name: '김철수', relationship: '아들'),
-  ];
+  final List<Guardian> _guardians = [];
 
   void _removeGuardian(int index) {
     setState(() => _guardians.removeAt(index));
@@ -33,13 +31,28 @@ class _OnboardingFamilyScreenState extends State<OnboardingFamilyScreen> {
       return;
     }
 
-    final guardian = await showDialog<Guardian>(
-      context: context,
-      builder: (_) => const _AddGuardianDialog(),
-    );
-    if (guardian != null) {
-      setState(() => _guardians.add(guardian));
+    final picked = await FlutterContacts.openExternalPick();
+    if (picked == null) return;
+
+    var name = picked.displayName;
+    var phoneNumber = '';
+    try {
+      final full = await FlutterContacts.getContact(
+        picked.id,
+        withProperties: true,
+      );
+      if (full != null) {
+        if (full.displayName.isNotEmpty) name = full.displayName;
+        if (full.phones.isNotEmpty) phoneNumber = full.phones.first.number;
+      }
+    } catch (_) {
+      // 연락처 권한이 없으면 선택창에서 받은 이름만 사용한다.
     }
+
+    if (!mounted) return;
+    setState(() {
+      _guardians.add(Guardian(name: name, phoneNumber: phoneNumber));
+    });
   }
 
   @override
@@ -147,18 +160,11 @@ class _GuardianCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 guardian.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.brandBlueDark,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                guardian.relationship,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
                   color: AppColors.brandBlueDark,
                 ),
               ),
@@ -324,75 +330,5 @@ class _DashedRRectPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedRRectPainter oldDelegate) {
     return color != oldDelegate.color || radius != oldDelegate.radius;
-  }
-}
-
-class _AddGuardianDialog extends StatefulWidget {
-  const _AddGuardianDialog();
-
-  @override
-  State<_AddGuardianDialog> createState() => _AddGuardianDialogState();
-}
-
-class _AddGuardianDialogState extends State<_AddGuardianDialog> {
-  final _nameController = TextEditingController();
-  final _relationshipController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _relationshipController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final name = _nameController.text.trim();
-    final relationship = _relationshipController.text.trim();
-    if (name.isEmpty || relationship.isEmpty) return;
-
-    Navigator.of(context).pop(
-      Guardian(name: name, relationship: relationship),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        '가족 추가하기',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: AppColors.brandBlueDark,
-        ),
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(labelText: '이름'),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            controller: _relationshipController,
-            decoration: const InputDecoration(labelText: '관계 (예: 딸, 아들)'),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('취소'),
-        ),
-        TextButton(
-          onPressed: _submit,
-          child: const Text('추가'),
-        ),
-      ],
-    );
   }
 }
