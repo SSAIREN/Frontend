@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ssairen/core/router/route_paths.dart';
+import 'package:ssairen/features/onboarding/onboarding_permission_handler.dart';
 import 'package:ssairen/features/onboarding/widgets/onboarding_layout.dart';
 import 'package:ssairen/features/onboarding/widgets/permission_card.dart';
 
@@ -12,8 +13,12 @@ class OnboardingMicScreen extends StatelessWidget {
     return OnboardingLayout(
       currentStep: 1,
       buttonLabel: '마이크 허용하기',
-      onButtonPressed: () =>
-          Navigator.of(context).pushNamed(RoutePaths.onboardingContacts),
+      onButtonPressed: () => requestPermissionAndContinue(
+        context: context,
+        request: (service) => service.requestMicrophone(),
+        nextRoute: RoutePaths.onboardingContacts,
+        settingsMessage: '실시간 보이스피싱 탐지를 위해 마이크 권한이 필요해요. 설정에서 허용해주세요.',
+      ),
       child: PermissionCard(
         icon: SvgPicture.asset(
           'assets/onboarding/mic_screen.svg',

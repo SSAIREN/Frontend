@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
+import 'package:ssairen/features/onboarding/onboarding_permission_handler.dart';
 import 'package:ssairen/features/onboarding/widgets/onboarding_layout.dart';
 import 'package:ssairen/features/onboarding/widgets/permission_card.dart';
 
@@ -11,8 +12,12 @@ class OnboardingLocationScreen extends StatelessWidget {
     return OnboardingLayout(
       currentStep: 4,
       buttonLabel: '위치 허용하기',
-      onButtonPressed: () =>
-          Navigator.of(context).pushNamed(RoutePaths.onboardingDone),
+      onButtonPressed: () => requestPermissionAndContinue(
+        context: context,
+        request: (service) => service.requestLocation(),
+        nextRoute: RoutePaths.onboardingDone,
+        settingsMessage: '위급 상황 시 위치 공유를 위해 위치 권한이 필요해요. 설정에서 허용해주세요.',
+      ),
       child: const PermissionCard(
         icon: Icon(Icons.location_on, color: Colors.white, size: 34),
         title: '위급 상황시 위치를 공유해요.',
