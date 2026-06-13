@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/calling/widgets/risk_analysis_card.dart';
+import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
 
 class HarmfulBottomSheet extends StatelessWidget {
   const HarmfulBottomSheet({
     required this.percent,
     required this.aiSummary,
     required this.keywords,
+    required this.phoneNumber,
+    required this.callElapsed,
     super.key,
   });
 
   final int percent;
   final String aiSummary;
   final List<String> keywords;
+  final String phoneNumber;
+  final Duration callElapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -97,7 +102,13 @@ class HarmfulBottomSheet extends StatelessWidget {
               FilledButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed(RoutePaths.harmfulDashboard);
+                  Navigator.of(context).pushNamed(
+                    RoutePaths.harmfulDashboard,
+                    arguments: HarmfulDashboardArgs(
+                      phoneNumber: phoneNumber,
+                      callElapsed: callElapsed,
+                    ),
+                  );
                 },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brandBlue,

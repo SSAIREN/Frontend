@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:ssairen/core/config/api_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
 import 'package:ssairen/models/websocket_event.dart';
@@ -13,11 +13,19 @@ class WebSocketService {
   WebSocketChannel? _channel;
   StreamController<SocketEvent>? _mockController;
 
+  // .env 미설정 시 기본 mock 모드
+  bool get _useMockApi =>
+      (dotenv.env['USE_MOCK_API']?.trim().toLowerCase() ?? 'true') == 'true';
+
+  String get _baseUrl => dotenv.env['API_BASE_URL']?.trim().isNotEmpty == true
+      ? dotenv.env['API_BASE_URL']!.trim()
+      : 'http://10.0.2.2:8080';
+
   Stream<SocketEvent> connect(
     CallSession session, {
     int? nextTranscriptSequence,
   }) {
-    if (ApiConfig.useMockApi) {
+    if (_useMockApi) {
       return _connectMock(
         session,
         nextTranscriptSequence: nextTranscriptSequence,
@@ -42,7 +50,7 @@ class WebSocketService {
       request: request,
     );
 
-    if (ApiConfig.useMockApi) {
+    if (_useMockApi) {
       _emitMockTranscriptResponse(event);
       return;
     }
@@ -61,7 +69,7 @@ class WebSocketService {
       lastTranscriptSequence: lastTranscriptSequence,
     );
 
-    if (ApiConfig.useMockApi) {
+    if (_useMockApi) {
       _mockController?.add(
         SocketEvent(
           eventId: 'server-session-complete-${endedAt.microsecondsSinceEpoch}',
@@ -165,7 +173,7 @@ class WebSocketService {
   }
 
   Uri _buildWebSocketUri(String webSocketUrl) {
-    final baseUri = Uri.parse(ApiConfig.baseUrl);
+    final baseUri = Uri.parse(_baseUrl);
     final scheme = baseUri.scheme == 'https' ? 'wss' : 'ws';
 
     return Uri(

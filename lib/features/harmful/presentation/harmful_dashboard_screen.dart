@@ -1,10 +1,65 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/app_router.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
+import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
+import 'package:ssairen/features/harmful/widgets/kakao_location_map.dart';
 
-class HarmfulDashboardScreen extends StatelessWidget {
+class HarmfulDashboardScreen extends StatefulWidget {
   const HarmfulDashboardScreen({super.key});
+
+  @override
+  State<HarmfulDashboardScreen> createState() => _HarmfulDashboardScreenState();
+}
+
+class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
+  // 데모 기본값 (인자 없이 직접 진입했을 때)
+  String _phoneNumber = '01087654321';
+  Duration _callElapsed = const Duration(minutes: 2, seconds: 45);
+  double _latitude = 37.4979;
+  double _longitude = 127.0276;
+  bool _initialized = false;
+  Timer? _callDurationTimer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is HarmfulDashboardArgs) {
+      _phoneNumber = args.phoneNumber;
+      _callElapsed = args.callElapsed;
+      _latitude = args.latitude;
+      _longitude = args.longitude;
+    }
+    // 통화는 계속 진행 중이므로 진입 시점부터 시간을 이어서 흐르게 한다.
+    _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _callElapsed += const Duration(seconds: 1));
+    });
+  }
+
+  @override
+  void dispose() {
+    _callDurationTimer?.cancel();
+    super.dispose();
+  }
+
+  String get _formattedPhoneNumber {
+    final d = _phoneNumber;
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return '${d.substring(0, 3)}-${d.substring(3)}';
+    return '${d.substring(0, 3)}-${d.substring(3, 7)}-${d.substring(7)}';
+  }
+
+  String get _formattedElapsed {
+    final m = _callElapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = _callElapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,11 +77,14 @@ class HarmfulDashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _DangerCallBanner(),
+                _DangerCallBanner(
+                  phoneNumber: _formattedPhoneNumber,
+                  elapsed: _formattedElapsed,
+                ),
                 const SizedBox(height: 28),
                 const _FamilyReplyCard(),
                 const SizedBox(height: 24),
-                const _LocationCard(),
+                _LocationCard(latitude: _latitude, longitude: _longitude),
                 const SizedBox(height: 18),
                 const _PoliceStatusCard(),
                 const SizedBox(height: 28),
@@ -64,7 +122,13 @@ class HarmfulDashboardScreen extends StatelessWidget {
 }
 
 class _DangerCallBanner extends StatelessWidget {
-  const _DangerCallBanner();
+  const _DangerCallBanner({
+    required this.phoneNumber,
+    required this.elapsed,
+  });
+
+  final String phoneNumber;
+  final String elapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -76,18 +140,18 @@ class _DangerCallBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.dangerRedBright),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.warning_amber_rounded,
             color: AppColors.dangerRedBright,
             size: 28,
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
-              '010-8765-4321',
-              style: TextStyle(
+              phoneNumber,
+              style: const TextStyle(
                 color: AppColors.brandBlueDark,
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -96,8 +160,8 @@ class _DangerCallBanner extends StatelessWidget {
             ),
           ),
           Text(
-            '02:45',
-            style: TextStyle(
+            elapsed,
+            style: const TextStyle(
               color: AppColors.dangerRed,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -211,7 +275,13 @@ class _FamilyReplyCard extends StatelessWidget {
 }
 
 class _LocationCard extends StatelessWidget {
-  const _LocationCard();
+  const _LocationCard({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final double latitude;
+  final double longitude;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +291,7 @@ class _LocationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _MapPreview(),
+          _MapPreview(latitude: latitude, longitude: longitude),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             child: Row(
@@ -295,14 +365,15 @@ class _PoliceStatusCard extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
+            alignment: Alignment.center,
             decoration: const BoxDecoration(
               color: Color(0xFFF1F5FF),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.health_and_safety,
-              color: AppColors.brandBlue,
-              size: 27,
+            child: Image.asset(
+              'assets/widget_logo_blue.png',
+              width: 27,
+              height: 27,
             ),
           ),
           const SizedBox(width: 16),
@@ -352,7 +423,13 @@ class _PoliceStatusCard extends StatelessWidget {
 }
 
 class _MapPreview extends StatelessWidget {
-  const _MapPreview();
+  const _MapPreview({
+    required this.latitude,
+    required this.longitude,
+  });
+
+  final double latitude;
+  final double longitude;
 
   @override
   Widget build(BuildContext context) {
@@ -361,17 +438,9 @@ class _MapPreview extends StatelessWidget {
       child: Stack(
         children: [
           Positioned.fill(
-            child: CustomPaint(
-              painter: _MapPainter(),
-            ),
-          ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            child: Center(
-              child: _CurrentLocationPin(),
+            child: KakaoLocationMap(
+              latitude: latitude,
+              longitude: longitude,
             ),
           ),
           Positioned(
@@ -392,30 +461,6 @@ class _MapPreview extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CurrentLocationPin extends StatelessWidget {
-  const _CurrentLocationPin();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: AppColors.brandBlue,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.brandBlue.withValues(alpha: 0.36),
-            blurRadius: 12,
-            spreadRadius: 4,
           ),
         ],
       ),
@@ -455,94 +500,3 @@ class _DashboardCard extends StatelessWidget {
   }
 }
 
-class _MapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final background = Paint()..color = const Color(0xFFEAF0E6);
-    canvas.drawRect(Offset.zero & size, background);
-
-    _drawBlocks(canvas, size);
-    _drawRoad(canvas, size, const Offset(-20, 42), const Offset(190, 18), 18);
-    _drawRoad(canvas, size, const Offset(50, -20), const Offset(320, 210), 22);
-    _drawRoad(canvas, size, const Offset(-30, 136), const Offset(400, 114), 20);
-    _drawRoad(canvas, size, const Offset(235, -20), const Offset(178, 210), 16);
-
-    final subway = Paint()
-      ..color = const Color(0xFF2DA44E)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(size.width * 0.03, size.height * 0.72),
-      Offset(size.width * 0.95, size.height * 0.22),
-      subway,
-    );
-
-    final traffic = Paint()
-      ..color = const Color(0xFFFACC15)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(size.width * 0.35, 0),
-      Offset(size.width * 0.58, size.height),
-      traffic,
-    );
-  }
-
-  void _drawBlocks(Canvas canvas, Size size) {
-    final blockPaint = Paint()..color = Colors.white.withValues(alpha: 0.75);
-    final borderPaint = Paint()
-      ..color = const Color(0xFFD1D5DB)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    final rects = <Rect>[
-      Rect.fromLTWH(14, 12, 78, 36),
-      Rect.fromLTWH(112, 8, 92, 42),
-      Rect.fromLTWH(244, 16, 86, 36),
-      Rect.fromLTWH(20, 72, 96, 44),
-      Rect.fromLTWH(146, 67, 76, 46),
-      Rect.fromLTWH(264, 75, 92, 45),
-      Rect.fromLTWH(36, 144, 82, 32),
-      Rect.fromLTWH(156, 136, 88, 38),
-      Rect.fromLTWH(278, 142, 80, 32),
-    ];
-
-    for (final rect in rects) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-        blockPaint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-        borderPaint,
-      );
-    }
-  }
-
-  void _drawRoad(
-    Canvas canvas,
-    Size size,
-    Offset start,
-    Offset end,
-    double width,
-  ) {
-    final roadBorder = Paint()
-      ..color = const Color(0xFFD1D5DB)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width + 4
-      ..strokeCap = StrokeCap.round;
-    final road = Paint()
-      ..color = const Color(0xFFF8FAFC)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(start, end, roadBorder);
-    canvas.drawLine(start, end, road);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
