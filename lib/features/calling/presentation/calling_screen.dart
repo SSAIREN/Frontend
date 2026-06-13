@@ -450,7 +450,10 @@ class _CallingScreenState extends State<CallingScreen> {
           keywords: _latestKeywords,
           onEndCall: () {
             Navigator.of(context).pop();
-            Navigator.of(context).pushNamed(RoutePaths.policeShare);
+            Navigator.of(context).pushNamed(
+              RoutePaths.policeShare,
+              arguments: _callElapsed,
+            );
           },
         );
       },
