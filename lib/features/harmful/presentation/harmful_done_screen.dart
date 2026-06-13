@@ -5,6 +5,7 @@ import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/glowing_check.dart';
 import 'package:ssairen/core/widgets/primary_button.dart';
+import 'package:ssairen/features/home/home_report_store.dart';
 
 class HarmfulDoneScreen extends StatelessWidget {
   const HarmfulDoneScreen({super.key});
@@ -77,6 +78,7 @@ class HarmfulDoneScreen extends StatelessWidget {
                     PrimaryButton(
                       label: '확인',
                       onPressed: () {
+                        HomeReportStore.markHarmfulResponseCompleted();
                         Navigator.of(
                           context,
                         ).pushReplacement(AppRouter.fadeRoute(RoutePaths.home));

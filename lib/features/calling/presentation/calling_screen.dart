@@ -288,6 +288,24 @@ class _CallingScreenState extends State<CallingScreen> {
     });
   }
 
+  Future<void> _triggerHarmfulAiPlan() async {
+    final session = _callSession;
+    if (session == null) {
+      debugPrint('[AI_PLAN_TRIGGER][SKIP] call session is null');
+      return;
+    }
+
+    try {
+      await _analyzeApiService.triggerAiPlan(
+        sessionId: session.sessionId,
+        message: '위험 상황 대응 계획을 실행합니다.',
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[AI_PLAN_TRIGGER][ERROR] $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+  }
+
   Future<void> _endCallMonitoring({
     bool waitForSessionCompleteAck = false,
   }) async {
@@ -1006,6 +1024,7 @@ class _CallingScreenState extends State<CallingScreen> {
         onRunPlan: () {
           final navigator = Navigator.of(context);
           navigator.pop();
+          unawaited(_triggerHarmfulAiPlan());
           _openHarmfulDashboardFromSheet(navigator);
         },
         onEndCall: () {
