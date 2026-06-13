@@ -34,6 +34,7 @@ class _CallingScreenState extends State<CallingScreen> {
   bool _initialized = false;
   static const _debugStopAtWarningBranch = false;
   static const _audioChunkDuration = Duration(seconds: 5);
+  static const _webSocketPingInterval = Duration(seconds: 30);
   static const _hapticsChannel = MethodChannel('ssairen/haptics');
 
   final _analyzeApiService = AnalyzeApiService();
@@ -44,12 +45,14 @@ class _CallingScreenState extends State<CallingScreen> {
   final Queue<_PendingTranscriptAnalysis> _analysisQueue =
       Queue<_PendingTranscriptAnalysis>();
   Timer? _callDurationTimer;
+  Timer? _webSocketPingTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
   Duration _callElapsed = Duration.zero;
   int _riskPercent = 0;
   int _sttChunkSequence = 1;
   int _nextTranscriptSequence = 1;
   int _lastAcceptedSequence = 0;
+  DateTime? _lastSocketPongAt;
   String _latestAiSummary = '현재까지 위험 표현은 감지되지 않았습니다.';
   List<String> _latestKeywords = const [];
   String _latestPhishingType = 'NONE';
@@ -87,6 +90,7 @@ class _CallingScreenState extends State<CallingScreen> {
   void dispose() {
     _callEnded = true;
     _callDurationTimer?.cancel();
+    _stopWebSocketPing();
     _stopTranscriptAnalysis();
     unawaited(_audioRecorderService.dispose());
     unawaited(_socketSubscription?.cancel());
@@ -230,6 +234,7 @@ class _CallingScreenState extends State<CallingScreen> {
     if (_callEnded) return;
     _callEnded = true;
     _callDurationTimer?.cancel();
+    _stopWebSocketPing();
     _stopTranscriptAnalysis();
 
     final session = _callSession;
@@ -345,6 +350,10 @@ class _CallingScreenState extends State<CallingScreen> {
       );
       unawaited(_drainSttQueue());
     } catch (error, stackTrace) {
+      if (_callEnded || !_shouldRunTranscriptLoop) {
+        _logStt('AUDIO CANCELLED: stt=$sttSequence');
+        return;
+      }
       _logStt('AUDIO ERROR: $error');
       debugPrintStack(stackTrace: stackTrace);
     } finally {
@@ -698,6 +707,7 @@ class _CallingScreenState extends State<CallingScreen> {
           },
           onDone: () {
             debugPrint('WebSocket closed.');
+            _stopWebSocketPing();
             if (!mounted || _callEnded) return;
             setState(() {
               _isWebSocketConnected = false;
@@ -718,6 +728,7 @@ class _CallingScreenState extends State<CallingScreen> {
           _isWebSocketConnected = true;
           _nextTranscriptSequence = data.nextTranscriptSequence;
         });
+        _startWebSocketPing(event.sessionId);
       case SocketEventType.transcriptAck:
         setState(() {
           _lastAcceptedSequence = event.data['acceptedSequence'] as int;
@@ -743,8 +754,38 @@ class _CallingScreenState extends State<CallingScreen> {
       case SocketEventType.sessionComplete:
       case SocketEventType.ping:
       case SocketEventType.pong:
+        _lastSocketPongAt = event.occurredAt;
+        debugPrint(
+          '[WEBSOCKET_PONG] '
+          'sessionId=${event.sessionId}, occurredAt=${event.occurredAt.toIso8601String()}',
+        );
         break;
     }
+  }
+
+  void _startWebSocketPing(String sessionId) {
+    _stopWebSocketPing();
+    if (_callEnded) return;
+
+    _sendWebSocketPing(sessionId);
+    _webSocketPingTimer = Timer.periodic(_webSocketPingInterval, (_) {
+      _sendWebSocketPing(sessionId);
+    });
+  }
+
+  void _stopWebSocketPing() {
+    _webSocketPingTimer?.cancel();
+    _webSocketPingTimer = null;
+  }
+
+  void _sendWebSocketPing(String sessionId) {
+    if (_callEnded || !_isWebSocketConnected) return;
+
+    debugPrint(
+      '[WEBSOCKET_PING] '
+      'sessionId=$sessionId, lastPong=${_lastSocketPongAt?.toIso8601String() ?? 'none'}',
+    );
+    _webSocketService.sendPing(sessionId: sessionId);
   }
 
   void _handleTranscriptNack(SocketEvent event) {

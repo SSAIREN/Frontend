@@ -76,10 +76,26 @@ class WebSocketService {
           eventType: SocketEventType.sessionCompleteAck,
           sessionId: sessionId,
           occurredAt: endedAt,
-          data: const {
-            'status': 'COMPLETED',
-            'finalAnalysisQueued': true,
-          },
+          data: const {'status': 'COMPLETED', 'finalAnalysisQueued': true},
+        ),
+      );
+      return;
+    }
+
+    _channel?.sink.add(jsonEncode(event.toJson()));
+  }
+
+  void sendPing({required String sessionId}) {
+    final event = SocketEvent.ping(sessionId: sessionId);
+
+    if (_useMockApi) {
+      _mockController?.add(
+        SocketEvent(
+          eventId: 'server-pong-${DateTime.now().microsecondsSinceEpoch}',
+          eventType: SocketEventType.pong,
+          sessionId: sessionId,
+          occurredAt: DateTime.now(),
+          data: const {},
         ),
       );
       return;
@@ -106,7 +122,8 @@ class WebSocketService {
       if (_mockController?.isClosed ?? true) return;
       _mockController?.add(
         SocketEvent(
-          eventId: 'server-session-ready-${DateTime.now().microsecondsSinceEpoch}',
+          eventId:
+              'server-session-ready-${DateTime.now().microsecondsSinceEpoch}',
           eventType: SocketEventType.sessionReady,
           sessionId: session.sessionId,
           occurredAt: DateTime.now(),
