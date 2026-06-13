@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ssairen/core/router/route_paths.dart';
+import 'package:ssairen/features/onboarding/onboarding_permission_handler.dart';
 import 'package:ssairen/features/onboarding/widgets/onboarding_layout.dart';
 import 'package:ssairen/features/onboarding/widgets/permission_card.dart';
 
@@ -12,8 +13,12 @@ class OnboardingContactsScreen extends StatelessWidget {
     return OnboardingLayout(
       currentStep: 2,
       buttonLabel: '연락처 허용하기',
-      onButtonPressed: () =>
-          Navigator.of(context).pushNamed(RoutePaths.onboardingFamily),
+      onButtonPressed: () => requestPermissionAndContinue(
+        context: context,
+        request: (service) => service.requestContacts(),
+        nextRoute: RoutePaths.onboardingFamily,
+        settingsMessage: '위험 전화 감지 시 가족에게 알리기 위해 연락처 권한이 필요해요. 설정에서 허용해주세요.',
+      ),
       child: PermissionCard(
         icon: SvgPicture.asset(
           'assets/onboarding/contacts_screen.svg',
