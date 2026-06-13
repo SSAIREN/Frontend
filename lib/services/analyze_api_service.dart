@@ -88,6 +88,37 @@ class AnalyzeApiService {
     );
   }
 
+  Future<void> triggerAiPlan({
+    required String sessionId,
+    required String message,
+  }) async {
+    final body = {
+      'sessionId': sessionId,
+      'message': message,
+    };
+
+    if (_useMockApi) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      debugPrint('[AI_PLAN_TRIGGER][MOCK] $body');
+      return;
+    }
+
+    try {
+      debugPrint('[AI_PLAN_TRIGGER][REQUEST] $body');
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/ai/use/trigger',
+        data: body,
+      );
+      debugPrint(
+        '[AI_PLAN_TRIGGER][RESPONSE] '
+        'status=${response.statusCode}, body=${response.data}',
+      );
+    } on DioException catch (error) {
+      _logDioError('[AI_PLAN_TRIGGER][ERROR_RESPONSE]', error);
+      throw StateError(_formatDioError('AI plan trigger failed', error));
+    }
+  }
+
   Map<String, dynamic>? _extractPayload(Map<String, dynamic>? body) {
     if (body == null) return null;
     final data = body['data'];
