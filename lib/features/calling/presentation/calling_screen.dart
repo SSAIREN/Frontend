@@ -474,6 +474,8 @@ class _CallingScreenState extends State<CallingScreen> {
         percent: _riskPercent,
         aiSummary: _dangerAiSummary,
         keywords: _dangerKeywords,
+        phoneNumber: _phoneNumber,
+        callElapsed: _callElapsed,
       ),
     );
   }

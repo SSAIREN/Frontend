@@ -1,10 +1,60 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/app_router.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
+import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
 
-class HarmfulDashboardScreen extends StatelessWidget {
+class HarmfulDashboardScreen extends StatefulWidget {
   const HarmfulDashboardScreen({super.key});
+
+  @override
+  State<HarmfulDashboardScreen> createState() => _HarmfulDashboardScreenState();
+}
+
+class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
+  // 데모 기본값 (인자 없이 직접 진입했을 때)
+  String _phoneNumber = '01087654321';
+  Duration _callElapsed = const Duration(minutes: 2, seconds: 45);
+  bool _initialized = false;
+  Timer? _callDurationTimer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is HarmfulDashboardArgs) {
+      _phoneNumber = args.phoneNumber;
+      _callElapsed = args.callElapsed;
+    }
+    // 통화는 계속 진행 중이므로 진입 시점부터 시간을 이어서 흐르게 한다.
+    _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() => _callElapsed += const Duration(seconds: 1));
+    });
+  }
+
+  @override
+  void dispose() {
+    _callDurationTimer?.cancel();
+    super.dispose();
+  }
+
+  String get _formattedPhoneNumber {
+    final d = _phoneNumber;
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return '${d.substring(0, 3)}-${d.substring(3)}';
+    return '${d.substring(0, 3)}-${d.substring(3, 7)}-${d.substring(7)}';
+  }
+
+  String get _formattedElapsed {
+    final m = _callElapsed.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = _callElapsed.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +72,10 @@ class HarmfulDashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _DangerCallBanner(),
+                _DangerCallBanner(
+                  phoneNumber: _formattedPhoneNumber,
+                  elapsed: _formattedElapsed,
+                ),
                 const SizedBox(height: 28),
                 const _FamilyReplyCard(),
                 const SizedBox(height: 24),
@@ -64,7 +117,13 @@ class HarmfulDashboardScreen extends StatelessWidget {
 }
 
 class _DangerCallBanner extends StatelessWidget {
-  const _DangerCallBanner();
+  const _DangerCallBanner({
+    required this.phoneNumber,
+    required this.elapsed,
+  });
+
+  final String phoneNumber;
+  final String elapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -76,18 +135,18 @@ class _DangerCallBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.dangerRedBright),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.warning_amber_rounded,
             color: AppColors.dangerRedBright,
             size: 28,
           ),
-          SizedBox(width: 14),
+          const SizedBox(width: 14),
           Expanded(
             child: Text(
-              '010-8765-4321',
-              style: TextStyle(
+              phoneNumber,
+              style: const TextStyle(
                 color: AppColors.brandBlueDark,
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -96,8 +155,8 @@ class _DangerCallBanner extends StatelessWidget {
             ),
           ),
           Text(
-            '02:45',
-            style: TextStyle(
+            elapsed,
+            style: const TextStyle(
               color: AppColors.dangerRed,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -295,14 +354,15 @@ class _PoliceStatusCard extends StatelessWidget {
           Container(
             width: 48,
             height: 48,
+            alignment: Alignment.center,
             decoration: const BoxDecoration(
               color: Color(0xFFF1F5FF),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.health_and_safety,
-              color: AppColors.brandBlue,
-              size: 27,
+            child: Image.asset(
+              'assets/widget_logo_blue.png',
+              width: 27,
+              height: 27,
             ),
           ),
           const SizedBox(width: 16),
