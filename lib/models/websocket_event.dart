@@ -7,6 +7,7 @@ enum SocketEventType {
   analysisResult('ANALYSIS_RESULT'),
   analysisError('ANALYSIS_ERROR'),
   transcriptNack('TRANSCRIPT_NACK'),
+  harmfulResponseUpdate('HARMFUL_RESPONSE_UPDATE'),
   sessionComplete('SESSION_COMPLETE'),
   sessionCompleteAck('SESSION_COMPLETE_ACK'),
   ping('PING'),

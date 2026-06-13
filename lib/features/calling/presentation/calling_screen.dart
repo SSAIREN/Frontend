@@ -13,6 +13,7 @@ import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
 import 'package:ssairen/features/calling/widgets/risk_monitor_panel.dart';
 import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
 import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
+import 'package:ssairen/features/harmful/harmful_response_state.dart';
 import 'package:ssairen/features/result/police_share_args.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/risk_result.dart';
@@ -43,6 +44,8 @@ class _CallingScreenState extends State<CallingScreen> {
   final _audioRecorderService = AudioChunkRecorderService();
   final _whisperSttService = WhisperSttService();
   final _webSocketService = WebSocketService();
+  final _harmfulResponseNotifier =
+      HarmfulResponseNotifier(const HarmfulResponseState());
   final Queue<_PendingAudioChunk> _sttQueue = Queue<_PendingAudioChunk>();
   final Queue<_PendingTranscriptAnalysis> _analysisQueue =
       Queue<_PendingTranscriptAnalysis>();
@@ -61,6 +64,7 @@ class _CallingScreenState extends State<CallingScreen> {
   String _latestPhishingType = 'NONE';
   bool _shownWarningSheet = false;
   bool _shownDangerSheet = false;
+  bool _isWebSocketConnecting = false;
   bool _isWebSocketConnected = false;
   bool _shouldRunTranscriptLoop = false;
   bool _isTranscriptLoopRunning = false;
@@ -100,6 +104,7 @@ class _CallingScreenState extends State<CallingScreen> {
     unawaited(_audioRecorderService.dispose());
     unawaited(_socketSubscription?.cancel());
     unawaited(_webSocketService.close());
+    _harmfulResponseNotifier.dispose();
     super.dispose();
   }
 
@@ -260,6 +265,8 @@ class _CallingScreenState extends State<CallingScreen> {
     final phoneNumber = _phoneNumber;
     final callElapsed = _callElapsed;
 
+    _stopTranscriptAnalysis();
+    _harmfulResponseNotifier.value = const HarmfulResponseState();
     setState(() {
       _isHarmfulDashboardOpen = true;
       _shownDangerSheet = true;
@@ -271,6 +278,7 @@ class _CallingScreenState extends State<CallingScreen> {
       arguments: HarmfulDashboardArgs(
         phoneNumber: phoneNumber,
         callElapsed: callElapsed,
+        responseNotifier: _harmfulResponseNotifier,
       ),
     ).then((_) {
       if (!mounted || _callEnded) return;
@@ -317,6 +325,7 @@ class _CallingScreenState extends State<CallingScreen> {
     }
 
     _isWebSocketConnected = false;
+    _isWebSocketConnecting = false;
     unawaited(_socketSubscription?.cancel());
     _socketSubscription = null;
     _sessionCompleteAckCompleter = null;
@@ -762,11 +771,11 @@ class _CallingScreenState extends State<CallingScreen> {
 
   void _connectWebSocket(CallSession session) {
     if (_callEnded) return;
-    if (_isWebSocketConnected) return;
+    if (_isWebSocketConnected || _isWebSocketConnecting) return;
 
     debugPrint('Opening WebSocket for session: ${session.sessionId}');
     setState(() {
-      _isWebSocketConnected = true;
+      _isWebSocketConnecting = true;
     });
     unawaited(_socketSubscription?.cancel());
     _socketSubscription = _webSocketService
@@ -776,12 +785,18 @@ class _CallingScreenState extends State<CallingScreen> {
           onError: (Object error, StackTrace stackTrace) {
             debugPrint('WebSocket error: $error');
             debugPrintStack(stackTrace: stackTrace);
+            if (!mounted || _callEnded) return;
+            setState(() {
+              _isWebSocketConnecting = false;
+              _isWebSocketConnected = false;
+            });
           },
           onDone: () {
             debugPrint('WebSocket closed.');
             _stopWebSocketPing();
             if (!mounted || _callEnded) return;
             setState(() {
+              _isWebSocketConnecting = false;
               _isWebSocketConnected = false;
             });
           },
@@ -800,6 +815,7 @@ class _CallingScreenState extends State<CallingScreen> {
       case SocketEventType.sessionReady:
         final data = SessionReadyData.fromEvent(event);
         setState(() {
+          _isWebSocketConnecting = false;
           _isWebSocketConnected = true;
           _nextTranscriptSequence = data.nextTranscriptSequence;
         });
@@ -829,6 +845,8 @@ class _CallingScreenState extends State<CallingScreen> {
         debugPrint('WebSocket analysis error data: ${event.data}');
       case SocketEventType.transcriptNack:
         _handleTranscriptNack(event);
+      case SocketEventType.harmfulResponseUpdate:
+        _handleHarmfulResponseUpdate(event);
       case SocketEventType.transcriptChunk:
       case SocketEventType.sessionComplete:
       case SocketEventType.ping:
@@ -1006,6 +1024,20 @@ class _CallingScreenState extends State<CallingScreen> {
       _isRiskSheetVisible = false;
       debugPrint('[DANGER_BOTTOM_SHEET][DISMISS]');
     });
+  }
+
+  void _handleHarmfulResponseUpdate(SocketEvent event) {
+    final update = HarmfulResponseState.fromSocketData(event.data);
+    _harmfulResponseNotifier.value =
+        _harmfulResponseNotifier.value.copyWith(
+      familyMessage: update.familyMessage,
+      x: update.x,
+      y: update.y,
+      address: update.address,
+      policeStatus: update.policeStatus,
+      policeDetail: update.policeDetail,
+    );
+    debugPrint('[HARMFUL_RESPONSE_UPDATE] ${event.data}');
   }
 
   Future<void> _vibrateForRisk(RiskLevel level) async {

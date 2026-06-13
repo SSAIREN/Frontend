@@ -3,6 +3,7 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/calling/widgets/risk_analysis_card.dart';
 import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
+import 'package:ssairen/features/harmful/harmful_response_state.dart';
 
 class HarmfulBottomSheet extends StatelessWidget {
   const HarmfulBottomSheet({
@@ -112,6 +113,9 @@ class HarmfulBottomSheet extends StatelessWidget {
                         arguments: HarmfulDashboardArgs(
                           phoneNumber: phoneNumber,
                           callElapsed: callElapsed,
+                          responseNotifier: HarmfulResponseNotifier(
+                            const HarmfulResponseState(),
+                          ),
                         ),
                       );
                     },

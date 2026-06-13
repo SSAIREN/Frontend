@@ -5,6 +5,7 @@ import 'package:ssairen/core/router/app_router.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
+import 'package:ssairen/features/harmful/harmful_response_state.dart';
 import 'package:ssairen/features/harmful/widgets/kakao_location_map.dart';
 
 class HarmfulDashboardScreen extends StatefulWidget {
@@ -15,27 +16,33 @@ class HarmfulDashboardScreen extends StatefulWidget {
 }
 
 class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
-  // 데모 기본값 (인자 없이 직접 진입했을 때)
   String _phoneNumber = '01087654321';
   Duration _callElapsed = const Duration(minutes: 2, seconds: 45);
-  double _latitude = 37.4979;
-  double _longitude = 127.0276;
+  double _fallbackLatitude = HarmfulDashboardArgs.defaultLat;
+  double _fallbackLongitude = HarmfulDashboardArgs.defaultLng;
   bool _initialized = false;
+  bool _ownsNotifier = false;
   Timer? _callDurationTimer;
+  HarmfulResponseNotifier _responseNotifier =
+      HarmfulResponseNotifier(const HarmfulResponseState());
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
+
     final args = ModalRoute.of(context)?.settings.arguments;
     if (args is HarmfulDashboardArgs) {
       _phoneNumber = args.phoneNumber;
       _callElapsed = args.callElapsed;
-      _latitude = args.latitude;
-      _longitude = args.longitude;
+      _fallbackLatitude = args.latitude;
+      _fallbackLongitude = args.longitude;
+      _responseNotifier = args.responseNotifier;
+    } else {
+      _ownsNotifier = true;
     }
-    // 통화는 계속 진행 중이므로 진입 시점부터 시간을 이어서 흐르게 한다.
+
     _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _callElapsed += const Duration(seconds: 1));
@@ -45,12 +52,15 @@ class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
   @override
   void dispose() {
     _callDurationTimer?.cancel();
+    if (_ownsNotifier) {
+      _responseNotifier.dispose();
+    }
     super.dispose();
   }
 
   String get _formattedPhoneNumber {
-    final d = _phoneNumber;
-    if (d.length <= 3) return d;
+    final d = _phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    if (d.length <= 3) return d.isEmpty ? _phoneNumber : d;
     if (d.length <= 7) return '${d.substring(0, 3)}-${d.substring(3)}';
     return '${d.substring(0, 3)}-${d.substring(3, 7)}-${d.substring(7)}';
   }
@@ -66,55 +76,67 @@ class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
     return Scaffold(
       backgroundColor: AppColors.bgPrimary,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(21, 18, 21, 24),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.sizeOf(context).height -
-                  MediaQuery.paddingOf(context).vertical -
-                  42,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _DangerCallBanner(
-                  phoneNumber: _formattedPhoneNumber,
-                  elapsed: _formattedElapsed,
+        child: ValueListenableBuilder<HarmfulResponseState>(
+          valueListenable: _responseNotifier,
+          builder: (context, response, _) {
+            final latitude = response.y ?? _fallbackLatitude;
+            final longitude = response.x ?? _fallbackLongitude;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(21, 18, 21, 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.sizeOf(context).height -
+                      MediaQuery.paddingOf(context).vertical -
+                      42,
                 ),
-                const SizedBox(height: 28),
-                const _FamilyReplyCard(),
-                const SizedBox(height: 24),
-                _LocationCard(latitude: _latitude, longitude: _longitude),
-                const SizedBox(height: 18),
-                const _PoliceStatusCard(),
-                const SizedBox(height: 28),
-                FilledButton.icon(
-                  // 전화 끊기 = 상황 종료 → 대응 완료 화면으로 이동
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    AppRouter.fadeRoute(RoutePaths.harmfulDone),
-                  ),
-                  icon: const Icon(Icons.call_end, size: 22),
-                  label: const Text('전화 끊기'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.dangerRedBright,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(56),
-                    textStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _DangerCallBanner(
+                      phoneNumber: _formattedPhoneNumber,
+                      elapsed: _formattedElapsed,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    const SizedBox(height: 28),
+                    _FamilyReplyCard(response: response),
+                    const SizedBox(height: 24),
+                    _LocationCard(
+                      latitude: latitude,
+                      longitude: longitude,
+                      address: response.address,
+                      isPending: !response.hasLocation,
                     ),
-                    elevation: 10,
-                    shadowColor: AppColors.dangerRedBright.withValues(
-                      alpha: 0.3,
+                    const SizedBox(height: 18),
+                    _PoliceStatusCard(response: response),
+                    const SizedBox(height: 28),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).pushReplacement(
+                        AppRouter.fadeRoute(RoutePaths.harmfulDone),
+                      ),
+                      icon: const Icon(Icons.call_end, size: 22),
+                      label: const Text('전화 끊기'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.dangerRedBright,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(56),
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 10,
+                        shadowColor: AppColors.dangerRedBright.withValues(
+                          alpha: 0.3,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -174,10 +196,17 @@ class _DangerCallBanner extends StatelessWidget {
 }
 
 class _FamilyReplyCard extends StatelessWidget {
-  const _FamilyReplyCard();
+  const _FamilyReplyCard({required this.response});
+
+  final HarmfulResponseState response;
 
   @override
   Widget build(BuildContext context) {
+    final isPending = !response.hasFamilyMessage;
+    final title = isPending ? '아들에게 답장 요청 중' : '아들에게 답장이 왔어요!';
+    final subtitle = isPending ? '보호 대상자 상태 확인 중' : '보호 대상자 상태 확인됨';
+    final message = response.familyMessage ?? '아들의 답장을 기다리고 있어요';
+
     return _DashboardCard(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       child: Column(
@@ -204,35 +233,23 @@ class _FamilyReplyCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            '아들에게 답장이 왔어요!',
-                            style: TextStyle(
+                            title,
+                            style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                        Container(
-                          width: 19,
-                          height: 19,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF16C784),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                        ),
+                        _StatusIndicator(isPending: isPending),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    const Text(
-                      '보호 대상자 상태 확인됨',
-                      style: TextStyle(
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -250,16 +267,22 @@ class _FamilyReplyCard extends StatelessWidget {
               color: AppColors.bgSecondary,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.chat_bubble, color: AppColors.brandBlue, size: 21),
-                SizedBox(width: 12),
+                Icon(
+                  Icons.chat_bubble,
+                  color: isPending ? AppColors.textMuted : AppColors.brandBlue,
+                  size: 21,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '엄마 나 친구들이랑 강남에서 노는중...',
+                    message,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: isPending
+                          ? AppColors.textMuted
+                          : AppColors.textSecondary,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),
@@ -278,10 +301,14 @@ class _LocationCard extends StatelessWidget {
   const _LocationCard({
     required this.latitude,
     required this.longitude,
+    required this.address,
+    required this.isPending,
   });
 
   final double latitude;
   final double longitude;
+  final String? address;
+  final bool isPending;
 
   @override
   Widget build(BuildContext context) {
@@ -291,33 +318,38 @@ class _LocationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _MapPreview(latitude: latitude, longitude: longitude),
+          if (isPending)
+            const _PendingMapPreview()
+          else
+            _MapPreview(latitude: latitude, longitude: longitude),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.location_on,
-                  color: AppColors.brandBlue,
+                  color: isPending ? AppColors.textMuted : AppColors.brandBlue,
                   size: 23,
                 ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '서울시 강남구',
-                        style: TextStyle(
+                        isPending ? '위치 확인 중' : (address ?? '현재 위치 확인됨'),
+                        style: const TextStyle(
                           color: AppColors.brandBlueDark,
                           fontSize: 19,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
-                        '현재 보호 대상자 위치',
-                        style: TextStyle(
+                        isPending
+                            ? '보호 대상자 GPS 응답 대기'
+                            : '현재 보호 대상자 위치',
+                        style: const TextStyle(
                           color: AppColors.brandBlue,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -335,9 +367,9 @@ class _LocationCard extends StatelessWidget {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text(
-                    'REAL-TIME GPS',
-                    style: TextStyle(
+                  child: Text(
+                    isPending ? 'PENDING' : 'REAL-TIME GPS',
+                    style: const TextStyle(
                       color: AppColors.brandBlue,
                       fontSize: 11,
                       fontWeight: FontWeight.w900,
@@ -354,10 +386,16 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _PoliceStatusCard extends StatelessWidget {
-  const _PoliceStatusCard();
+  const _PoliceStatusCard({required this.response});
+
+  final HarmfulResponseState response;
 
   @override
   Widget build(BuildContext context) {
+    final isPending = !response.hasPoliceStatus;
+    final status = response.policeStatus ?? '경찰 대응 요청 중';
+    final detail = response.policeDetail ?? '긴급 상황 공유 응답 대기';
+
     return _DashboardCard(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Row(
@@ -377,22 +415,22 @@ class _PoliceStatusCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '경찰이 상황을 지켜보고 있어요',
-                  style: TextStyle(
+                  status,
+                  style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
                 Text(
-                  '긴급 출동 대기 상태 · 서초경찰서',
-                  style: TextStyle(
+                  detail,
+                  style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -401,22 +439,39 @@ class _PoliceStatusCard extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            width: 14,
-            height: 14,
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.45),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-          ),
+          _StatusIndicator(isPending: isPending),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusIndicator extends StatelessWidget {
+  const _StatusIndicator({required this.isPending});
+
+  final bool isPending;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isPending) {
+      return const SizedBox(
+        width: 19,
+        height: 19,
+        child: CircularProgressIndicator(strokeWidth: 2.4),
+      );
+    }
+
+    return Container(
+      width: 19,
+      height: 19,
+      decoration: const BoxDecoration(
+        color: Color(0xFF16C784),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(
+        Icons.check,
+        color: Colors.white,
+        size: 14,
       ),
     );
   }
@@ -443,26 +498,69 @@ class _MapPreview extends StatelessWidget {
               longitude: longitude,
             ),
           ),
-          Positioned(
+          const Positioned(
             left: 16,
             bottom: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'REAL-TIME GPS',
-                style: TextStyle(
-                  color: AppColors.brandBlue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+            child: _MapBadge(label: 'REAL-TIME GPS'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingMapPreview extends StatelessWidget {
+  const _PendingMapPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 184,
+      color: const Color(0xFFF1F5F9),
+      alignment: Alignment.center,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+          SizedBox(height: 12),
+          Text(
+            '위치 정보를 기다리고 있어요',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MapBadge extends StatelessWidget {
+  const _MapBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.brandBlue,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }
@@ -499,4 +597,3 @@ class _DashboardCard extends StatelessWidget {
     );
   }
 }
-
