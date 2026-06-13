@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
+import 'package:ssairen/features/result/police_share_args.dart';
 import 'package:ssairen/features/calling/widgets/call_control_button.dart';
 import 'package:ssairen/features/calling/widgets/call_gradient_background.dart';
 import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
@@ -452,7 +453,10 @@ class _CallingScreenState extends State<CallingScreen> {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed(
               RoutePaths.policeShare,
-              arguments: _callElapsed,
+              arguments: PoliceShareArgs(
+                callDuration: _callElapsed,
+                phishingType: _latestPhishingType,
+              ),
             );
           },
         );
