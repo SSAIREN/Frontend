@@ -36,8 +36,7 @@ class _DialScreenState extends State<DialScreen> {
 
   void _onCall() {
     if (_digits.isEmpty) return;
-    // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
-    Navigator.of(context).pushNamed(RoutePaths.calling);
+    Navigator.of(context).pushNamed(RoutePaths.calling, arguments: _digits);
   }
 
   @override

@@ -23,7 +23,8 @@ class CallingScreen extends StatefulWidget {
 }
 
 class _CallingScreenState extends State<CallingScreen> {
-  static const _phoneNumber = '01087654321';
+  String _phoneNumber = '01087654321';
+  bool _initialized = false;
   static const _debugStopAtWarningBranch = true;
   static const _mockTranscriptTexts = [
     '지금은 평범한 통화 내용입니다.',
@@ -53,6 +54,17 @@ class _CallingScreenState extends State<CallingScreen> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String && args.isNotEmpty) {
+      _phoneNumber = args;
+    }
     _startCallDurationTimer();
     _createCallSession();
   }
@@ -83,7 +95,7 @@ class _CallingScreenState extends State<CallingScreen> {
                 children: [
                   _CallingTopBar(elapsed: _callElapsed),
                   const SizedBox(height: 38),
-                  const _CallHeader(),
+                  _CallHeader(phoneNumber: _phoneNumber),
                   const SizedBox(height: 42),
                   GestureDetector(
                     onTap: _sendNextMockTranscript,
@@ -498,7 +510,16 @@ class _CallingTopBar extends StatelessWidget {
 }
 
 class _CallHeader extends StatelessWidget {
-  const _CallHeader();
+  const _CallHeader({required this.phoneNumber});
+
+  final String phoneNumber;
+
+  String get _formatted {
+    final d = phoneNumber;
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return '${d.substring(0, 3)}-${d.substring(3)}';
+    return '${d.substring(0, 3)}-${d.substring(3, 7)}-${d.substring(7)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -526,9 +547,9 @@ class _CallHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        const Text(
-          '010-8765-4321',
-          style: TextStyle(
+        Text(
+          _formatted,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 31,
             fontWeight: FontWeight.w700,
