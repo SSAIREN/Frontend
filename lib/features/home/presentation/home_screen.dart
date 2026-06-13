@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/core/widgets/app_bottom_nav.dart';
+import 'package:ssairen/features/home/home_report_store.dart';
 import 'package:ssairen/features/home/widgets/guardian_list.dart';
 import 'package:ssairen/features/home/widgets/home_status_tile.dart';
 import 'package:ssairen/features/home/widgets/protection_status_card.dart';
@@ -49,7 +50,15 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xxl),
               const ProtectionStatusCard(protectedDuration: '2시간 32분'),
               const SizedBox(height: AppSpacing.lg),
-              const WeeklyReportCard(suspiciousCallCount: 0),
+              ValueListenableBuilder<HomeReportState>(
+                valueListenable: HomeReportStore.notifier,
+                builder: (context, report, _) {
+                  return WeeklyReportCard(
+                    suspiciousCallCount: report.suspiciousCallCount,
+                    statusLabel: report.statusLabel,
+                  );
+                },
+              ),
               const SizedBox(height: AppSpacing.lg),
               const Row(
                 children: [

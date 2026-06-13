@@ -6,10 +6,12 @@ import 'package:ssairen/core/widgets/soft_blue_card.dart';
 class WeeklyReportCard extends StatelessWidget {
   const WeeklyReportCard({
     required this.suspiciousCallCount,
+    required this.statusLabel,
     super.key,
   });
 
   final int suspiciousCallCount;
+  final String statusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +54,7 @@ class WeeklyReportCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  suspiciousCallCount == 0 ? '의심 전화 없음' : '의심 전화 감지됨',
+                  statusLabel,
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
