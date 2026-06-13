@@ -115,9 +115,10 @@ class RecentsScreen extends StatelessWidget {
                 CallLogSection(
                   title: entry.key,
                   logs: entry.value,
-                  // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
-                  onLogTap: (_) =>
-                      Navigator.of(context).pushNamed(RoutePaths.calling),
+                  onLogTap: (log) => Navigator.of(context).pushNamed(
+                    RoutePaths.calling,
+                    arguments: log.phoneNumber,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xl),
               ],

@@ -65,16 +65,16 @@ class CallSession {
 
   factory CallSession.fromJson(Map<String, dynamic> json) {
     return CallSession(
-      sessionId: json['sessionId'] as String,
-      status: json['status'] as String,
-      nextTranscriptSequence: json['nextTranscriptSequence'] as int,
+      sessionId: _readString(json['sessionId'], ''),
+      status: _readString(json['status'], 'ACTIVE'),
+      nextTranscriptSequence: _readInt(json['nextTranscriptSequence'], 1),
       accumulatedTranscriptCharacters:
-          json['accumulatedTranscriptCharacters'] as int,
-      startedAt: DateTime.parse(json['startedAt'] as String),
+          _readInt(json['accumulatedTranscriptCharacters'], 0),
+      startedAt: _readDateTime(json['startedAt'], DateTime.now()),
       endedAt: json['endedAt'] == null
           ? null
-          : DateTime.parse(json['endedAt'] as String),
-      webSocketUrl: json['webSocketUrl'] as String,
+          : _readDateTime(json['endedAt'], DateTime.now()),
+      webSocketUrl: _readString(json['webSocketUrl'], ''),
     );
   }
 
@@ -90,6 +90,37 @@ class CallSession {
       webSocketUrl: '/ws/v1/victim?sessionId=$sessionId',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sessionId': sessionId,
+      'status': status,
+      'nextTranscriptSequence': nextTranscriptSequence,
+      'accumulatedTranscriptCharacters': accumulatedTranscriptCharacters,
+      'startedAt': startedAt.toIso8601String(),
+      'endedAt': endedAt?.toIso8601String(),
+      'webSocketUrl': webSocketUrl,
+    };
+  }
+}
+
+String _readString(Object? value, String fallback) {
+  if (value is String && value.trim().isNotEmpty) return value;
+  return fallback;
+}
+
+int _readInt(Object? value, int fallback) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
+}
+
+DateTime _readDateTime(Object? value, DateTime fallback) {
+  if (value is String && value.trim().isNotEmpty) {
+    return DateTime.tryParse(value) ?? fallback;
+  }
+  return fallback;
 }
 
 String _toIso8601Offset(DateTime dateTime) {

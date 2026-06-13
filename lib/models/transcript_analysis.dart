@@ -54,19 +54,42 @@ class TranscriptAnalyzeResponse {
   final List<String> keywords;
   final bool shouldOpenWebSocket;
 
-  factory TranscriptAnalyzeResponse.fromJson(Map<String, dynamic> json) {
+  factory TranscriptAnalyzeResponse.fromJson(
+    Map<String, dynamic> json, {
+    String? fallbackSessionId,
+    TranscriptAnalyzeRequest? fallbackRequest,
+  }) {
+    final fallbackSequence = fallbackRequest?.sequence ?? 0;
+    final acceptedSequence = _readInt(
+      json['acceptedSequence'],
+      fallbackSequence,
+    );
+    final riskScore = _readInt(json['riskScore'], 0);
+
     return TranscriptAnalyzeResponse(
-      sessionId: json['sessionId'] as String,
-      chunkId: json['chunkId'] as String,
-      acceptedSequence: json['acceptedSequence'] as int,
-      nextTranscriptSequence: json['nextTranscriptSequence'] as int,
-      duplicate: json['duplicate'] as bool,
-      analysisThresholdReached: json['analysisThresholdReached'] as bool,
-      riskScore: json['riskScore'] as int,
-      phishingType: json['phishingType'] as String,
-      aiSummary: json['aiSummary'] as String,
-      keywords: (json['keywords'] as List<dynamic>).cast<String>(),
-      shouldOpenWebSocket: json['shouldOpenWebSocket'] as bool,
+      sessionId: _readString(json['sessionId'], fallbackSessionId ?? ''),
+      chunkId: _readString(json['chunkId'], fallbackRequest?.chunkId ?? ''),
+      acceptedSequence: acceptedSequence,
+      nextTranscriptSequence: _readInt(
+        json['nextTranscriptSequence'],
+        acceptedSequence + 1,
+      ),
+      duplicate: _readBool(json['duplicate'], false),
+      analysisThresholdReached: _readBool(
+        json['analysisThresholdReached'],
+        riskScore >= 41,
+      ),
+      riskScore: riskScore,
+      phishingType: _readString(
+        json['phishingType'],
+        _mockPhishingType(riskScore),
+      ),
+      aiSummary: _readString(json['aiSummary'], ''),
+      keywords: _readStringList(json['keywords']),
+      shouldOpenWebSocket: _readBool(
+        json['shouldOpenWebSocket'],
+        riskScore >= 56,
+      ),
     );
   }
 
@@ -96,6 +119,22 @@ class TranscriptAnalyzeResponse {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'sessionId': sessionId,
+      'chunkId': chunkId,
+      'acceptedSequence': acceptedSequence,
+      'nextTranscriptSequence': nextTranscriptSequence,
+      'duplicate': duplicate,
+      'analysisThresholdReached': analysisThresholdReached,
+      'riskScore': riskScore,
+      'phishingType': phishingType,
+      'aiSummary': aiSummary,
+      'keywords': keywords,
+      'shouldOpenWebSocket': shouldOpenWebSocket,
+    };
+  }
+
   static String _mockPhishingType(int riskScore) {
     if (riskScore >= 76) return 'FAMILY_THREAT';
     if (riskScore >= 56) return 'ACCOUNT_TRANSFER_INDUCEMENT';
@@ -115,5 +154,36 @@ class TranscriptAnalyzeResponse {
     if (riskScore >= 56) return const ['검사', '수사', '입금'];
     if (riskScore >= 41) return const ['계좌', '확인'];
     return const [];
+  }
+
+  static String _readString(Object? value, String fallback) {
+    if (value is String && value.trim().isNotEmpty) return value;
+    return fallback;
+  }
+
+  static int _readInt(Object? value, int fallback) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? fallback;
+    return fallback;
+  }
+
+  static bool _readBool(Object? value, bool fallback) {
+    if (value is bool) return value;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true') return true;
+      if (normalized == 'false') return false;
+    }
+    return fallback;
+  }
+
+  static List<String> _readStringList(Object? value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Object>()
+        .map((item) => item.toString().trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
 }
