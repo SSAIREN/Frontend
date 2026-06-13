@@ -13,6 +13,8 @@ abstract final class RoutePaths {
   static const contacts = '/contacts';
   static const dial = '/dial';
 
+  static const guardianResponse = '/guardian/response';
+
   static const calling = '/calling';
   static const policeShare = '/result/share';
   static const receiptDone = '/result/done';

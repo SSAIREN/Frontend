@@ -107,7 +107,7 @@ class _HarmfulDashboardScreenState extends State<HarmfulDashboardScreen> {
                       isPending: !response.hasLocation,
                     ),
                     const SizedBox(height: 18),
-                    _PoliceStatusCard(response: response),
+                    const _PoliceStatusCard(),
                     const SizedBox(height: 28),
                     FilledButton.icon(
                       onPressed: () => Navigator.of(context).pushReplacement(
@@ -386,15 +386,14 @@ class _LocationCard extends StatelessWidget {
 }
 
 class _PoliceStatusCard extends StatelessWidget {
-  const _PoliceStatusCard({required this.response});
-
-  final HarmfulResponseState response;
+  const _PoliceStatusCard();
 
   @override
   Widget build(BuildContext context) {
-    final isPending = !response.hasPoliceStatus;
-    final status = response.policeStatus ?? '경찰 대응 요청 중';
-    final detail = response.policeDetail ?? '긴급 상황 공유 응답 대기';
+    // 시연용: 경찰 대응을 항상 완료 상태로 표시한다.
+    const isPending = false;
+    const status = '경찰 대응 완료';
+    const detail = '긴급 상황이 경찰에 공유되었어요';
 
     return _DashboardCard(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),

@@ -3,6 +3,7 @@ import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/features/calling/presentation/calling_screen.dart';
 import 'package:ssairen/features/contacts/presentation/contacts_screen.dart';
 import 'package:ssairen/features/dial/presentation/dial_screen.dart';
+import 'package:ssairen/features/guardian/presentation/guardian_response_screen.dart';
 import 'package:ssairen/features/harmful/presentation/harmful_dashboard_screen.dart';
 import 'package:ssairen/features/harmful/presentation/harmful_done_screen.dart';
 import 'package:ssairen/features/home/presentation/home_screen.dart';
@@ -18,6 +19,9 @@ import 'package:ssairen/features/result/presentation/receipt_done_screen.dart';
 import 'package:ssairen/features/splash/presentation/splash_screen.dart';
 
 abstract final class AppRouter {
+  /// FCM 콜백 등 BuildContext 밖에서 화면을 전환할 때 사용한다.
+  static final navigatorKey = GlobalKey<NavigatorState>();
+
   static Map<String, WidgetBuilder> get routes {
     return {
       RoutePaths.splash: (_) => const SplashScreen(),
@@ -32,6 +36,7 @@ abstract final class AppRouter {
       RoutePaths.recents: (_) => const RecentsScreen(),
       RoutePaths.contacts: (_) => const ContactsScreen(),
       RoutePaths.dial: (_) => const DialScreen(),
+      RoutePaths.guardianResponse: (_) => const GuardianResponseScreen(),
       RoutePaths.calling: (_) => const CallingScreen(),
       RoutePaths.policeShare: (_) => const PoliceShareScreen(),
       RoutePaths.receiptDone: (_) => const ReceiptDoneScreen(),
