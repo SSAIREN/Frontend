@@ -8,7 +8,7 @@ class OnboardingLayout extends StatelessWidget {
   const OnboardingLayout({
     required this.child,
     this.currentStep,
-    this.totalSteps = 4,
+    this.totalSteps = 5,
     this.buttonLabel,
     this.onButtonPressed,
     this.caption = '나중에 설정에서 변경할 수 있어요',

@@ -5,7 +5,6 @@ import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
 import 'package:ssairen/models/guardian.dart';
 import 'package:ssairen/features/onboarding/widgets/onboarding_layout.dart';
-import 'package:ssairen/services/fcm_service.dart';
 
 const _maxGuardians = 3;
 
@@ -22,30 +21,8 @@ class _OnboardingFamilyScreenState extends State<OnboardingFamilyScreen> {
     const Guardian(name: '김철수', relationship: '아들'),
   ];
 
-  bool _isLoading = false;
-  final _fcmService = FcmService();
-
   void _removeGuardian(int index) {
     setState(() => _guardians.removeAt(index));
-  }
-
-  Future<void> _connectFamily() async {
-    setState(() => _isLoading = true);
-    try {
-      final token = await _fcmService.getToken();
-      if (token != null) {
-        await _fcmService.registerToken(userId: 1001, token: token);
-      }
-      if (!mounted) return;
-      Navigator.of(context).pushNamed(RoutePaths.onboardingLocation);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('FCM 토큰 등록에 실패했어요. 다시 시도해 주세요.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _addGuardian() async {
@@ -68,9 +45,10 @@ class _OnboardingFamilyScreenState extends State<OnboardingFamilyScreen> {
   @override
   Widget build(BuildContext context) {
     return OnboardingLayout(
-      currentStep: 3,
+      currentStep: 4,
       buttonLabel: '가족 연결하기',
-      onButtonPressed: _isLoading ? null : _connectFamily,
+      onButtonPressed: () =>
+          Navigator.of(context).pushNamed(RoutePaths.onboardingLocation),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,

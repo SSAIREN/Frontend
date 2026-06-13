@@ -13,6 +13,8 @@ class PermissionService {
 
   Future<PermissionStatus> requestLocation() => Permission.locationWhenInUse.request();
 
+  Future<PermissionStatus> requestNotification() => Permission.notification.request();
+
   /// 권한이 영구 거부되어 인앱 요청으로는 다시 띄울 수 없는 상태에서
   /// 사용자를 앱 설정 화면으로 이동시킨다.
   Future<bool> openSettings() => openAppSettings();

@@ -10,7 +10,7 @@ class OnboardingLocationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingLayout(
-      currentStep: 4,
+      currentStep: 5,
       buttonLabel: '위치 허용하기',
       onButtonPressed: () => requestPermissionAndContinue(
         context: context,
