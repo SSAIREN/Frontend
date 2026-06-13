@@ -15,18 +15,27 @@ class DialScreen extends StatefulWidget {
 }
 
 class _DialScreenState extends State<DialScreen> {
-  String _number = '';
+  String _digits = '';
+
+  String get _number {
+    final d = _digits;
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return '${d.substring(0, 3)}-${d.substring(3)}';
+    return '${d.substring(0, 3)}-${d.substring(3, 7)}-${d.substring(7)}';
+  }
 
   void _onKeyPressed(String value) {
-    setState(() => _number += value);
+    if (_digits.length >= 11) return;
+    setState(() => _digits += value);
   }
 
   void _onBackspace() {
-    setState(() => _number = _number.substring(0, _number.length - 1));
+    if (_digits.isEmpty) return;
+    setState(() => _digits = _digits.substring(0, _digits.length - 1));
   }
 
   void _onCall() {
-    if (_number.isEmpty) return;
+    if (_digits.isEmpty) return;
     // TODO: 입력 번호 전달은 calling 담당자와 협의 (RouteSettings.arguments)
     Navigator.of(context).pushNamed(RoutePaths.calling);
   }
@@ -70,7 +79,7 @@ class _DialScreenState extends State<DialScreen> {
               showBackspace: _number.isNotEmpty,
               onCall: _onCall,
               onBackspace: _onBackspace,
-              onClearAll: () => setState(() => _number = ''),
+              onClearAll: () => setState(() => _digits = ''),
             ),
             // 플로팅 하단 바(58 + 여백)에 가리지 않도록 확보
             const SizedBox(height: 150),
