@@ -241,7 +241,7 @@ class _CallingScreenState extends State<CallingScreen> {
     }
 
     if (!_whisperSttService.isConfigured) {
-      _logStt('ERROR: OPENAI_API_KEY is empty.');
+      _logStt('ERROR: OPENAI_API_KEY is empty. Check .env.');
       _shouldRunTranscriptLoop = false;
       return;
     }

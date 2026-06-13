@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:ssairen/core/config/api_config.dart';
 
 class WhisperSttService {
   WhisperSttService({Dio? dio})
@@ -11,7 +12,6 @@ class WhisperSttService {
               ),
             );
 
-  static const _apiKey = String.fromEnvironment('OPENAI_API_KEY');
   static const _model = String.fromEnvironment(
     'OPENAI_STT_MODEL',
     defaultValue: 'whisper-1',
@@ -19,12 +19,12 @@ class WhisperSttService {
 
   final Dio _dio;
 
-  bool get isConfigured => _apiKey.trim().isNotEmpty;
+  bool get isConfigured => ApiConfig.openAiApiKey.trim().isNotEmpty;
 
   Future<String> transcribeFile(String path) async {
     if (!isConfigured) {
       throw StateError(
-        'OPENAI_API_KEY is empty. Run with '
+        'OPENAI_API_KEY is empty. Add it to .env or pass '
         '--dart-define=OPENAI_API_KEY=your_api_key',
       );
     }
@@ -48,7 +48,7 @@ class WhisperSttService {
           headers: {
             Headers.contentTypeHeader: Headers.multipartFormDataContentType,
             Headers.acceptHeader: Headers.jsonContentType,
-            'authorization': 'Bearer $_apiKey',
+            'authorization': 'Bearer ${ApiConfig.openAiApiKey}',
           },
         ),
       );
