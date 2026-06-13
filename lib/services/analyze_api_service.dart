@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:ssairen/core/config/api_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
 
@@ -9,7 +9,9 @@ class AnalyzeApiService {
       : _dio = dio ??
             Dio(
               BaseOptions(
-                baseUrl: ApiConfig.baseUrl,
+                baseUrl: dotenv.env['API_BASE_URL']?.trim().isNotEmpty == true
+                    ? dotenv.env['API_BASE_URL']!.trim()
+                    : 'http://10.0.2.2:8080',
                 connectTimeout: const Duration(seconds: 30),
                 receiveTimeout: const Duration(seconds: 60),
                 headers: const {
@@ -20,10 +22,13 @@ class AnalyzeApiService {
 
   final Dio _dio;
 
+  bool get _useMockApi =>
+      (dotenv.env['USE_MOCK_API']?.trim().toLowerCase() ?? 'true') == 'true';
+
   Future<CallSession> createCallSession(
     CallSessionCreateRequest request,
   ) async {
-    if (ApiConfig.useMockApi) {
+    if (_useMockApi) {
       await Future<void>.delayed(const Duration(milliseconds: 300));
       return CallSession.mock(request);
     }
@@ -52,7 +57,7 @@ class AnalyzeApiService {
     required String sessionId,
     required TranscriptAnalyzeRequest request,
   }) async {
-    if (ApiConfig.useMockApi) {
+    if (_useMockApi) {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       return TranscriptAnalyzeResponse.mock(
         sessionId: sessionId,

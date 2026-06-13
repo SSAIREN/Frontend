@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:ssairen/core/config/api_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class WhisperSttService {
   WhisperSttService({Dio? dio})
@@ -19,7 +19,11 @@ class WhisperSttService {
 
   final Dio _dio;
 
-  bool get isConfigured => ApiConfig.openAiApiKey.trim().isNotEmpty;
+  String get _openAiApiKey {
+    return dotenv.env['OPENAI_API_KEY']?.trim() ?? '';
+  }
+
+  bool get isConfigured => _openAiApiKey.isNotEmpty;
 
   Future<String> transcribeFile(String path) async {
     if (!isConfigured) {
@@ -48,7 +52,7 @@ class WhisperSttService {
           headers: {
             Headers.contentTypeHeader: Headers.multipartFormDataContentType,
             Headers.acceptHeader: Headers.jsonContentType,
-            'authorization': 'Bearer ${ApiConfig.openAiApiKey}',
+            'authorization': 'Bearer $_openAiApiKey',
           },
         ),
       );

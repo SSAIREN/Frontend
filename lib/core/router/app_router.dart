@@ -37,16 +37,14 @@ abstract final class AppRouter {
     };
   }
 
-  /// 탭 전환처럼 좌우 이동 느낌이 없어야 하는 화면에 쓰는 페이드 전환 라우트.
+  /// 전환 효과 없이 즉시 화면을 교체하는 라우트.
+  /// (이름은 호환을 위해 유지 — 더 이상 페이드하지 않고 즉시 전환한다.)
   static Route<void> fadeRoute(String path) {
     return PageRouteBuilder(
       settings: RouteSettings(name: path),
-      transitionDuration: const Duration(milliseconds: 180),
-      reverseTransitionDuration: const Duration(milliseconds: 180),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
       pageBuilder: (context, _, _) => routes[path]!(context),
-      transitionsBuilder: (_, animation, _, child) {
-        return FadeTransition(opacity: animation, child: child);
-      },
     );
   }
 }

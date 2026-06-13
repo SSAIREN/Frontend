@@ -4,7 +4,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:ssairen/core/config/api_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/features/calling/widgets/call_control_button.dart';
@@ -12,6 +12,7 @@ import 'package:ssairen/features/calling/widgets/call_gradient_background.dart';
 import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
 import 'package:ssairen/features/calling/widgets/risk_monitor_panel.dart';
 import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
+import 'package:ssairen/features/result/police_share_args.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/risk_result.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
@@ -175,7 +176,7 @@ class _CallingScreenState extends State<CallingScreen> {
 
     try {
       _logStt(
-        'SESSION START: mock=${ApiConfig.useMockApi}, baseUrl=${ApiConfig.baseUrl}',
+        'SESSION START: mock=$_useMockApi, baseUrl=$_apiBaseUrl',
       );
       debugPrint(
         '[CALL_SESSION][REQUEST] '
@@ -235,6 +236,17 @@ class _CallingScreenState extends State<CallingScreen> {
   String get _normalizedPhoneNumber {
     final digits = _phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
     return digits.isEmpty ? _phoneNumber : digits;
+  }
+
+  String get _apiBaseUrl {
+    return dotenv.env['API_BASE_URL']?.trim().isNotEmpty == true
+        ? dotenv.env['API_BASE_URL']!.trim()
+        : 'http://10.0.2.2:8080';
+  }
+
+  bool get _useMockApi {
+    return (dotenv.env['USE_MOCK_API']?.trim().toLowerCase() ?? 'true') ==
+        'true';
   }
 
   void _startTranscriptAnalysis() {
@@ -766,7 +778,7 @@ class _CallingScreenState extends State<CallingScreen> {
     unawaited(_vibrateForRisk(RiskLevel.warning));
     debugPrint(
       '[WARNING_BOTTOM_SHEET][SHOW] '
-      'percent=${_riskPercent ?? 'none'}, '
+      'percent=$_riskPercent, '
       'aiSummary="$_latestAiSummary", '
       'keywords=$_latestKeywords, '
       'phishingType=$_latestPhishingType',
@@ -785,7 +797,10 @@ class _CallingScreenState extends State<CallingScreen> {
             Navigator.of(context).pop();
             Navigator.of(context).pushNamed(
               RoutePaths.policeShare,
-              arguments: _callElapsed,
+              arguments: PoliceShareArgs(
+                callDuration: _callElapsed,
+                phishingType: _latestPhishingType,
+              ),
             );
           },
         );
@@ -801,7 +816,7 @@ class _CallingScreenState extends State<CallingScreen> {
     unawaited(_vibrateForRisk(RiskLevel.danger));
     debugPrint(
       '[DANGER_BOTTOM_SHEET][SHOW] '
-      'percent=${_riskPercent ?? 'none'}, '
+      'percent=$_riskPercent, '
       'aiSummary="$_dangerAiSummary", '
       'keywords=$_dangerKeywords, '
       'phishingType=$_latestPhishingType',
@@ -815,10 +830,8 @@ class _CallingScreenState extends State<CallingScreen> {
         percent: _riskPercent,
         aiSummary: _dangerAiSummary,
         keywords: _dangerKeywords,
-        onRunPlan: () {
-          Navigator.of(context).pop();
-          Navigator.of(context).pushNamed(RoutePaths.harmfulDashboard);
-        },
+        phoneNumber: _phoneNumber,
+        callElapsed: _callElapsed,
         onEndCall: () {
           Navigator.of(context).pop();
           _handleEndCall();

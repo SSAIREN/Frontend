@@ -3,27 +3,25 @@ import 'package:ssairen/core/router/app_router.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/utils/phishing_type.dart';
 import 'package:ssairen/core/widgets/primary_button.dart';
 import 'package:ssairen/core/widgets/screen_headline.dart';
 import 'package:ssairen/core/widgets/soft_blue_card.dart';
 import 'package:ssairen/core/widgets/stretch_scroll_column.dart';
+import 'package:ssairen/features/result/police_share_args.dart';
 import 'package:ssairen/features/result/widgets/result_stat_card.dart';
 
 class PoliceShareScreen extends StatelessWidget {
   const PoliceShareScreen({super.key});
 
-  /// 통화 화면에서 전달된 통화 지속 시간을 'mm:ss'로 포맷한다.
-  /// 전달값이 없으면 데모용 기본값을 쓴다.
-  String _callDurationOf(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is! Duration) return '04:21';
-    final minutes = args.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = args.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
   @override
   Widget build(BuildContext context) {
+    // 통화 화면에서 전달된 통화 결과. 없으면 데모용 기본값.
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final callDuration = args is PoliceShareArgs ? args.formattedDuration : '04:21';
+    final phishingLabel =
+        args is PoliceShareArgs ? args.phishingTypeLabel : PhishingType.defaultLabel;
+
     return Scaffold(
       body: SafeArea(
         child: StretchScrollColumn(
@@ -56,12 +54,12 @@ class PoliceShareScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: ResultStatCard(
                     icon: Icons.warning,
                     iconColor: AppColors.warningButton,
                     label: '위험 감지 항목',
-                    value: '보이스피싱',
+                    value: phishingLabel,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.lg),
@@ -70,7 +68,7 @@ class PoliceShareScreen extends StatelessWidget {
                     icon: Icons.watch_later,
                     iconColor: AppColors.brandBlue,
                     label: '통화 지속 시간',
-                    value: _callDurationOf(context),
+                    value: callDuration,
                   ),
                 ),
               ],
