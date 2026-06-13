@@ -65,7 +65,7 @@ class HarmfulBottomSheet extends StatelessWidget {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '가족 협박형 보이스피싱이 감지됐어요',
+                      '높은 확률로 보이스피싱이에요',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 17,
