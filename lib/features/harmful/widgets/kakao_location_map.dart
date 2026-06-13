@@ -28,7 +28,12 @@ class _KakaoLocationMapState extends State<KakaoLocationMap> {
   void initState() {
     super.initState();
     if (_kakaoJsKey.isNotEmpty) {
-      AuthRepository.initialize(appKey: _kakaoJsKey);
+      // baseUrl(WebView origin)을 지정해야 카카오 JS SDK 도메인 검증을 통과한다.
+      // 카카오 개발자 콘솔의 Web 플랫폼 사이트 도메인에 동일한 값을 등록해야 함.
+      AuthRepository.initialize(
+        appKey: _kakaoJsKey,
+        baseUrl: 'http://localhost',
+      );
     }
   }
 
