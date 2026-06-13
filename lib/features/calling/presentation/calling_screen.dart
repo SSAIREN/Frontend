@@ -62,6 +62,7 @@ class _CallingScreenState extends State<CallingScreen> {
   bool _isSttQueueRunning = false;
   bool _isAnalysisQueueRunning = false;
   bool _isRiskSheetVisible = false;
+  bool _callEnded = false;
   CallSession? _callSession;
 
   @override
@@ -84,6 +85,7 @@ class _CallingScreenState extends State<CallingScreen> {
 
   @override
   void dispose() {
+    _callEnded = true;
     _callDurationTimer?.cancel();
     _stopTranscriptAnalysis();
     unawaited(_audioRecorderService.dispose());
@@ -101,7 +103,9 @@ class _CallingScreenState extends State<CallingScreen> {
             builder: (context, constraints) {
               final isTiny = constraints.maxHeight < 700;
               final isCompact = constraints.maxHeight < 760;
-              final riskPanelHeight = isTiny ? 136.0 : (isCompact ? 150.0 : 170.0);
+              final riskPanelHeight = isTiny
+                  ? 136.0
+                  : (isCompact ? 150.0 : 170.0);
               final padding = EdgeInsets.fromLTRB(
                 21,
                 isTiny ? 6 : (isCompact ? 10 : 16),
@@ -139,9 +143,7 @@ class _CallingScreenState extends State<CallingScreen> {
                         padding: EdgeInsets.only(
                           bottom: isTiny ? 8 : (isCompact ? 12 : 16),
                         ),
-                        child: _EndCallButton(
-                          onPressed: _handleEndCall,
-                        ),
+                        child: _EndCallButton(onPressed: _handleEndCall),
                       ),
                     ],
                   ),
@@ -153,6 +155,7 @@ class _CallingScreenState extends State<CallingScreen> {
       ),
     );
   }
+
   void _startCallDurationTimer() {
     _callDurationTimer?.cancel();
     _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -175,9 +178,7 @@ class _CallingScreenState extends State<CallingScreen> {
     );
 
     try {
-      _logStt(
-        'SESSION START: mock=$_useMockApi, baseUrl=$_apiBaseUrl',
-      );
+      _logStt('SESSION START: mock=$_useMockApi, baseUrl=$_apiBaseUrl');
       debugPrint(
         '[CALL_SESSION][REQUEST] '
         'userId=${request.userId}, '
@@ -191,7 +192,7 @@ class _CallingScreenState extends State<CallingScreen> {
         json: request.toJson(),
       );
       final session = await _analyzeApiService.createCallSession(request);
-      if (!mounted) return;
+      if (!mounted || _callEnded) return;
 
       setState(() {
         _callSession = session;
@@ -220,8 +221,17 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleEndCall() {
+    _endCallMonitoring();
+    debugPrint('Ending call session: ${_callSession?.sessionId ?? 'none'}');
+    Navigator.of(context).maybePop();
+  }
+
+  void _endCallMonitoring() {
+    if (_callEnded) return;
+    _callEnded = true;
     _callDurationTimer?.cancel();
     _stopTranscriptAnalysis();
+
     final session = _callSession;
     if (_isWebSocketConnected && session != null) {
       _webSocketService.sendSessionComplete(
@@ -229,8 +239,10 @@ class _CallingScreenState extends State<CallingScreen> {
         lastTranscriptSequence: _lastAcceptedSequence,
       );
     }
-    debugPrint('Ending call session: ${_callSession?.sessionId ?? 'none'}');
-    Navigator.of(context).maybePop();
+
+    _isWebSocketConnected = false;
+    unawaited(_socketSubscription?.cancel());
+    _socketSubscription = null;
   }
 
   String get _normalizedPhoneNumber {
@@ -250,6 +262,7 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _startTranscriptAnalysis() {
+    if (_callEnded) return;
     _shouldRunTranscriptLoop = true;
     unawaited(_runTranscriptLoop());
   }
@@ -272,7 +285,7 @@ class _CallingScreenState extends State<CallingScreen> {
     if (_isTranscriptLoopRunning) return;
     _isTranscriptLoopRunning = true;
 
-    while (mounted && _shouldRunTranscriptLoop) {
+    while (mounted && !_callEnded && _shouldRunTranscriptLoop) {
       await _captureAndAnalyzeNextTranscript();
     }
 
@@ -280,6 +293,8 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   Future<void> _captureAndAnalyzeNextTranscript() async {
+    if (_callEnded || !_shouldRunTranscriptLoop) return;
+
     if (_isProcessingAudioChunk) {
       _logStt('SKIP: previous audio chunk is still processing.');
       return;
@@ -307,6 +322,10 @@ class _CallingScreenState extends State<CallingScreen> {
         sequence: sttSequence,
         duration: _audioChunkDuration,
       );
+      if (_callEnded || !_shouldRunTranscriptLoop) {
+        unawaited(_audioRecorderService.deleteChunk(audioChunk.path));
+        return;
+      }
       final audioElapsedMs = _elapsedMsSince(audioStartedAt);
       _logStt(
         'AUDIO DONE: stt=$sttSequence, bytes=${audioChunk.bytes}, elapsed=${audioElapsedMs}ms',
@@ -338,7 +357,10 @@ class _CallingScreenState extends State<CallingScreen> {
     _isSttQueueRunning = true;
 
     try {
-      while (mounted && _shouldRunTranscriptLoop && _sttQueue.isNotEmpty) {
+      while (mounted &&
+          !_callEnded &&
+          _shouldRunTranscriptLoop &&
+          _sttQueue.isNotEmpty) {
         final pending = _sttQueue.removeFirst();
         await _transcribeQueuedAudio(pending);
       }
@@ -358,10 +380,9 @@ class _CallingScreenState extends State<CallingScreen> {
       );
       final whisperStartedAt = DateTime.now();
       final text = await _whisperSttService.transcribeFile(audioChunk.path);
+      if (_callEnded || !_shouldRunTranscriptLoop) return;
       final whisperElapsedMs = _elapsedMsSince(whisperStartedAt);
-      _logStt(
-        'TEXT: stt=$sttSequence, whisper=${whisperElapsedMs}ms, "$text"',
-      );
+      _logStt('TEXT: stt=$sttSequence, whisper=${whisperElapsedMs}ms, "$text"');
 
       if (text.isEmpty) {
         _logStt('SKIP: empty text. stt=$sttSequence');
@@ -410,6 +431,8 @@ class _CallingScreenState extends State<CallingScreen> {
     required int startedAtMs,
     required int endedAtMs,
   }) {
+    if (_callEnded || !_shouldRunTranscriptLoop) return;
+
     final request = TranscriptAnalyzeRequest(
       chunkId: 'chunk-${sequence.toString().padLeft(3, '0')}',
       sequence: sequence,
@@ -448,7 +471,7 @@ class _CallingScreenState extends State<CallingScreen> {
     _isAnalysisQueueRunning = true;
 
     try {
-      while (mounted && _analysisQueue.isNotEmpty) {
+      while (mounted && !_callEnded && _analysisQueue.isNotEmpty) {
         final pending = _analysisQueue.removeFirst();
         await _sendQueuedTranscriptAnalysis(pending);
       }
@@ -482,7 +505,7 @@ class _CallingScreenState extends State<CallingScreen> {
       );
       final analyzeEndedAt = DateTime.now();
       final analyzeElapsedMs = _elapsedMsSince(analyzeStartedAt);
-      if (!mounted) return;
+      if (!mounted || _callEnded) return;
 
       _logRestAnalyzeResponse(
         response,
@@ -534,10 +557,7 @@ class _CallingScreenState extends State<CallingScreen> {
       'isFinal=${request.isFinal}, '
       'text="${request.text}"',
     );
-    _logApiJson(
-      title: '[REST_ANALYZE][REQUEST_BODY]',
-      json: request.toJson(),
-    );
+    _logApiJson(title: '[REST_ANALYZE][REQUEST_BODY]', json: request.toJson());
   }
 
   void _logRestAnalyzeResponse(
@@ -589,6 +609,7 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _advanceTranscriptSequenceAfterFailure(int sequence, Object error) {
+    if (_callEnded) return;
     if (!error.toString().contains('DUPLICATE_TRANSCRIPT_CONFLICT')) return;
 
     final nextSequence = sequence + 1;
@@ -641,6 +662,8 @@ class _CallingScreenState extends State<CallingScreen> {
     required List<String> keywords,
     required String phishingType,
   }) {
+    if (_callEnded) return;
+
     setState(() {
       _riskPercent = riskScore;
       if (nextTranscriptSequence > _nextTranscriptSequence) {
@@ -657,6 +680,7 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _connectWebSocket(CallSession session) {
+    if (_callEnded) return;
     if (_isWebSocketConnected) return;
 
     debugPrint('Opening WebSocket for session: ${session.sessionId}');
@@ -665,28 +689,25 @@ class _CallingScreenState extends State<CallingScreen> {
     });
     unawaited(_socketSubscription?.cancel());
     _socketSubscription = _webSocketService
-        .connect(
-          session,
-          nextTranscriptSequence: _nextTranscriptSequence,
-        )
+        .connect(session, nextTranscriptSequence: _nextTranscriptSequence)
         .listen(
-      _handleSocketEvent,
-      onError: (Object error, StackTrace stackTrace) {
-        debugPrint('WebSocket error: $error');
-        debugPrintStack(stackTrace: stackTrace);
-      },
-      onDone: () {
-        debugPrint('WebSocket closed.');
-        if (!mounted) return;
-        setState(() {
-          _isWebSocketConnected = false;
-        });
-      },
-    );
+          _handleSocketEvent,
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('WebSocket error: $error');
+            debugPrintStack(stackTrace: stackTrace);
+          },
+          onDone: () {
+            debugPrint('WebSocket closed.');
+            if (!mounted || _callEnded) return;
+            setState(() {
+              _isWebSocketConnected = false;
+            });
+          },
+        );
   }
 
   void _handleSocketEvent(SocketEvent event) {
-    if (!mounted) return;
+    if (!mounted || _callEnded) return;
 
     debugPrint('WebSocket event received: ${event.eventType.value}');
 
@@ -727,6 +748,8 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleTranscriptNack(SocketEvent event) {
+    if (_callEnded) return;
+
     final details = event.data['details'];
     if (details is Map<String, dynamic>) {
       final expectedSequence = details['expectedSequence'];
@@ -740,6 +763,14 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleAnalysisRisk(int riskScore) {
+    if (_callEnded || !_shouldRunTranscriptLoop) {
+      debugPrint(
+        '[RISK_BOTTOM_SHEET][SKIP] '
+        'call ended, riskScore=$riskScore',
+      );
+      return;
+    }
+
     final level = RiskLevel.fromPercent(riskScore);
     if (_isRiskSheetVisible) {
       debugPrint(
@@ -769,6 +800,8 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _showSuspiciousSheet() {
+    if (_callEnded) return;
+
     unawaited(_vibrateForRisk(RiskLevel.warning));
     debugPrint(
       '[WARNING_BOTTOM_SHEET][SHOW] '
@@ -788,8 +821,10 @@ class _CallingScreenState extends State<CallingScreen> {
           aiSummary: _latestAiSummary,
           keywords: _latestKeywords,
           onEndCall: () {
-            Navigator.of(context).pop();
-            Navigator.of(context).pushNamed(
+            final navigator = Navigator.of(context);
+            navigator.pop();
+            _endCallMonitoring();
+            navigator.pushReplacementNamed(
               RoutePaths.policeShare,
               arguments: PoliceShareArgs(
                 callDuration: _callElapsed,
@@ -800,6 +835,7 @@ class _CallingScreenState extends State<CallingScreen> {
         );
       },
     ).whenComplete(() {
+      if (_callEnded) return;
       _shownWarningSheet = false;
       _isRiskSheetVisible = false;
       debugPrint('[WARNING_BOTTOM_SHEET][DISMISS]');
@@ -807,6 +843,8 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _showHarmfulSheet() {
+    if (_callEnded) return;
+
     unawaited(_vibrateForRisk(RiskLevel.danger));
     debugPrint(
       '[DANGER_BOTTOM_SHEET][SHOW] '
@@ -832,6 +870,7 @@ class _CallingScreenState extends State<CallingScreen> {
         },
       ),
     ).whenComplete(() {
+      if (_callEnded) return;
       _shownDangerSheet = false;
       _isRiskSheetVisible = false;
       debugPrint('[DANGER_BOTTOM_SHEET][DISMISS]');
@@ -841,9 +880,7 @@ class _CallingScreenState extends State<CallingScreen> {
   Future<void> _vibrateForRisk(RiskLevel level) async {
     final count = level == RiskLevel.danger ? 2 : 1;
     try {
-      await _hapticsChannel.invokeMethod<void>('riskVibrate', {
-        'count': count,
-      });
+      await _hapticsChannel.invokeMethod<void>('riskVibrate', {'count': count});
       debugPrint('[RISK_VIBRATION] native count=$count');
     } catch (error) {
       debugPrint('[RISK_VIBRATION][FALLBACK] $error');
@@ -994,10 +1031,7 @@ class _CallHeader extends StatelessWidget {
 }
 
 class _ControlGrid extends StatelessWidget {
-  const _ControlGrid({
-    required this.isCompact,
-    required this.isTiny,
-  });
+  const _ControlGrid({required this.isCompact, required this.isTiny});
 
   final bool isCompact;
   final bool isTiny;
@@ -1056,17 +1090,12 @@ class _ControlButtonSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 92,
-      child: child,
-    );
+    return SizedBox(width: 92, child: child);
   }
 }
 
 class _EndCallButton extends StatelessWidget {
-  const _EndCallButton({
-    required this.onPressed,
-  });
+  const _EndCallButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
