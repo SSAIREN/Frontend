@@ -88,18 +88,28 @@ class SocketEvent {
       },
     );
   }
+
+  factory SocketEvent.ping({required String sessionId}) {
+    final now = DateTime.now();
+    return SocketEvent(
+      eventId: 'event-ping-${now.microsecondsSinceEpoch}',
+      eventType: SocketEventType.ping,
+      sessionId: sessionId,
+      occurredAt: now,
+      data: const {},
+    );
+  }
 }
 
 class SessionReadyData {
-  const SessionReadyData({
-    required this.nextTranscriptSequence,
-  });
+  const SessionReadyData({required this.nextTranscriptSequence});
 
   final int nextTranscriptSequence;
 
   factory SessionReadyData.fromEvent(SocketEvent event) {
     return SessionReadyData(
-      nextTranscriptSequence: event.data['nextTranscriptSequence'] as int,
+      nextTranscriptSequence:
+          (event.data['nextTranscriptSequence'] as num?)?.toInt() ?? 1,
     );
   }
 }
@@ -124,14 +134,16 @@ class AnalysisResultData {
   final String provider;
 
   factory AnalysisResultData.fromEvent(SocketEvent event) {
+    final data = event.data;
     return AnalysisResultData(
-      chunkId: event.data['chunkId'] as String,
-      sequence: event.data['sequence'] as int,
-      riskScore: event.data['riskScore'] as int,
-      phishingType: event.data['phishingType'] as String,
-      aiSummary: event.data['aiSummary'] as String,
-      keywords: (event.data['keywords'] as List<dynamic>).cast<String>(),
-      provider: event.data['provider'] as String,
+      chunkId: data['chunkId'] as String? ?? '',
+      sequence: (data['sequence'] as num?)?.toInt() ?? 0,
+      riskScore: (data['riskScore'] as num?)?.toInt() ?? 0,
+      phishingType: data['phishingType'] as String? ?? 'NONE',
+      aiSummary: data['aiSummary'] as String? ?? '',
+      keywords:
+          (data['keywords'] as List<dynamic>?)?.cast<String>() ?? const [],
+      provider: data['provider'] as String? ?? '',
     );
   }
 }
@@ -142,10 +154,10 @@ String _toIso8601Offset(DateTime dateTime) {
   final sign = offset.isNegative ? '-' : '+';
   final absoluteOffset = offset.abs();
   final hours = absoluteOffset.inHours.toString().padLeft(2, '0');
-  final minutes = absoluteOffset.inMinutes.remainder(60).toString().padLeft(
-        2,
-        '0',
-      );
+  final minutes = absoluteOffset.inMinutes
+      .remainder(60)
+      .toString()
+      .padLeft(2, '0');
 
   return '${local.toIso8601String()}$sign$hours:$minutes';
 }
