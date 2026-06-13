@@ -3,6 +3,7 @@ import 'package:ssairen/core/router/app_router.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
 import 'package:ssairen/core/theme/app_spacing.dart';
+import 'package:ssairen/core/utils/phishing_type.dart';
 import 'package:ssairen/core/widgets/primary_button.dart';
 import 'package:ssairen/core/widgets/screen_headline.dart';
 import 'package:ssairen/core/widgets/soft_blue_card.dart';
@@ -18,7 +19,8 @@ class PoliceShareScreen extends StatelessWidget {
     // 통화 화면에서 전달된 통화 결과. 없으면 데모용 기본값.
     final args = ModalRoute.of(context)?.settings.arguments;
     final callDuration = args is PoliceShareArgs ? args.formattedDuration : '04:21';
-    final phishingLabel = args is PoliceShareArgs ? args.phishingTypeLabel : '보이스피싱';
+    final phishingLabel =
+        args is PoliceShareArgs ? args.phishingTypeLabel : PhishingType.defaultLabel;
 
     return Scaffold(
       body: SafeArea(

@@ -1,3 +1,5 @@
+import 'package:ssairen/core/utils/phishing_type.dart';
+
 /// 통화 화면 → 경찰 공유 화면으로 전달하는 통화 결과 인자.
 class PoliceShareArgs {
   const PoliceShareArgs({
@@ -19,14 +21,5 @@ class PoliceShareArgs {
   }
 
   /// 위험 감지 항목용 한글 라벨.
-  // TODO(2번 작업): enum 매핑을 core/utils 유틸로 분리하고 누락 케이스 보강
-  String get phishingTypeLabel {
-    return switch (phishingType) {
-      'AGENCY_IMPERSONATION' => '기관 사칭',
-      'ACCOUNT_TRANSFER_INDUCEMENT' => '계좌이체 유도',
-      'KIDNAPPING_THREAT' => '납치 협박',
-      'REMOTE_APP_INSTALLATION' => '원격 앱 설치',
-      _ => '보이스피싱',
-    };
-  }
+  String get phishingTypeLabel => PhishingType.labelOf(phishingType);
 }
