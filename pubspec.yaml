@@ -40,7 +40,7 @@ dependencies:
   web_socket_channel: ^3.0.2
 
   # 오디오 녹음 (5초 청크 스트리밍)
-  record: ^7.0.0
+  record: 7.0.0
 
   # FCM (보호자 알림 수신)
   firebase_core: ^3.12.1

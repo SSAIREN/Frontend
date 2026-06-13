@@ -13,6 +13,8 @@ import 'package:ssairen/models/risk_result.dart';
 import 'package:ssairen/models/transcript_analysis.dart';
 import 'package:ssairen/models/websocket_event.dart';
 import 'package:ssairen/services/analyze_api_service.dart';
+import 'package:ssairen/services/audio_chunk_recorder_service.dart';
+import 'package:ssairen/services/whisper_stt_service.dart';
 import 'package:ssairen/services/websocket_service.dart';
 
 class CallingScreen extends StatefulWidget {
@@ -26,29 +28,29 @@ class _CallingScreenState extends State<CallingScreen> {
   String _phoneNumber = '01087654321';
   bool _initialized = false;
   static const _debugStopAtWarningBranch = true;
-  static const _mockTranscriptTexts = [
-    '지금은 평범한 통화 내용입니다.',
-    '계좌 확인이 필요하다는 표현이 나왔습니다.',
-    '검찰 수사관입니다. 안전 계좌로 입금하세요.',
-    '아들을 데리고 있습니다. 지금 바로 입금하세요.',
-  ];
+  static const _audioChunkDuration = Duration(seconds: 5);
 
   final _analyzeApiService = AnalyzeApiService();
+  final _audioRecorderService = AudioChunkRecorderService();
+  final _whisperSttService = WhisperSttService();
   final _webSocketService = WebSocketService();
   Timer? _callDurationTimer;
-  Timer? _transcriptTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
   Duration _callElapsed = Duration.zero;
   int _riskPercent = 12;
+  int _sttChunkSequence = 1;
   int _nextTranscriptSequence = 1;
   int _lastAcceptedSequence = 0;
-  int _mockTranscriptIndex = 0;
   String _latestAiSummary = '현재까지 위험 표현은 감지되지 않았습니다.';
   List<String> _latestKeywords = const [];
   String _latestPhishingType = 'NONE';
+  String _sttDebugMessage = 'STT 대기 중';
   bool _shownWarningSheet = false;
   bool _shownDangerSheet = false;
   bool _isWebSocketConnected = false;
+  bool _shouldRunTranscriptLoop = false;
+  bool _isTranscriptLoopRunning = false;
+  bool _isProcessingAudioChunk = false;
   CallSession? _callSession;
 
   @override
@@ -72,7 +74,8 @@ class _CallingScreenState extends State<CallingScreen> {
   @override
   void dispose() {
     _callDurationTimer?.cancel();
-    _transcriptTimer?.cancel();
+    _stopTranscriptAnalysis();
+    unawaited(_audioRecorderService.dispose());
     unawaited(_socketSubscription?.cancel());
     unawaited(_webSocketService.close());
     super.dispose();
@@ -115,10 +118,12 @@ class _CallingScreenState extends State<CallingScreen> {
                         children: [
                           SizedBox(height: isCompact ? 24 : 34),
                           GestureDetector(
-                            onTap: _sendNextMockTranscript,
+                            onTap: _captureAndAnalyzeNextTranscript,
                             child: RiskMonitorPanel(percent: _riskPercent),
                           ),
-                          SizedBox(height: isCompact ? 20 : 28),
+                          SizedBox(height: isCompact ? 10 : 14),
+                          _SttDebugPanel(message: _sttDebugMessage),
+                          SizedBox(height: isCompact ? 10 : 14),
                           _ControlGrid(isCompact: isCompact),
                           SizedBox(height: isCompact ? 24 : 34),
                           _EndCallButton(
@@ -190,7 +195,7 @@ class _CallingScreenState extends State<CallingScreen> {
 
   void _handleEndCall() {
     _callDurationTimer?.cancel();
-    _transcriptTimer?.cancel();
+    _stopTranscriptAnalysis();
     final session = _callSession;
     if (_isWebSocketConnected && session != null) {
       _webSocketService.sendSessionComplete(
@@ -203,31 +208,110 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _startTranscriptAnalysis() {
-    _transcriptTimer?.cancel();
-    _sendNextMockTranscript();
-    _transcriptTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _sendNextMockTranscript(),
-    );
+    _shouldRunTranscriptLoop = true;
+    unawaited(_runTranscriptLoop());
   }
 
-  Future<void> _sendNextMockTranscript() async {
-    final session = _callSession;
-    if (session == null) return;
+  void _stopTranscriptAnalysis() {
+    _shouldRunTranscriptLoop = false;
+    unawaited(_audioRecorderService.cancel());
+  }
 
-    final sequence = _nextTranscriptSequence;
-    final chunkIndex = sequence - 1;
-    final transcriptIndex = _mockTranscriptIndex.clamp(
-      0,
-      _mockTranscriptTexts.length - 1,
-    ).toInt();
-    final text = _mockTranscriptTexts[transcriptIndex];
+  Future<void> _runTranscriptLoop() async {
+    if (_isTranscriptLoopRunning) return;
+    _isTranscriptLoopRunning = true;
+
+    while (mounted && _shouldRunTranscriptLoop) {
+      await _captureAndAnalyzeNextTranscript();
+    }
+
+    _isTranscriptLoopRunning = false;
+  }
+
+  Future<void> _captureAndAnalyzeNextTranscript() async {
+    if (_isProcessingAudioChunk) {
+      _logStt('SKIP: previous audio chunk is still processing.');
+      return;
+    }
+
+    final session = _callSession;
+    if (session == null) {
+      _logStt('WAIT: call session is not ready.');
+      return;
+    }
+
+    if (!_whisperSttService.isConfigured) {
+      _logStt('ERROR: OPENAI_API_KEY is empty.');
+      _shouldRunTranscriptLoop = false;
+      return;
+    }
+
+    final sttSequence = _sttChunkSequence++;
+    final analysisSequence = _nextTranscriptSequence;
+    final chunkIndex = analysisSequence - 1;
+    _isProcessingAudioChunk = true;
+    AudioChunk? audioChunk;
+
+    try {
+      _logStt('AUDIO START: stt=$sttSequence');
+      audioChunk = await _audioRecorderService.recordChunk(
+        sequence: sttSequence,
+        duration: _audioChunkDuration,
+      );
+      _logStt(
+        'AUDIO DONE: stt=$sttSequence, bytes=${audioChunk.bytes}',
+      );
+
+      _logStt('WHISPER START: stt=$sttSequence');
+      final text = await _whisperSttService.transcribeFile(audioChunk.path);
+      _logStt('TEXT: stt=$sttSequence, "$text"');
+
+      if (text.isEmpty) {
+        _logStt('SKIP: empty text. stt=$sttSequence');
+        return;
+      }
+
+      await _sendTranscriptText(
+        session: session,
+        sequence: analysisSequence,
+        text: text,
+        startedAtMs: chunkIndex * _audioChunkDuration.inMilliseconds,
+        endedAtMs: (chunkIndex + 1) * _audioChunkDuration.inMilliseconds,
+      );
+    } catch (error, stackTrace) {
+      _logStt('ERROR: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      final path = audioChunk?.path;
+      if (path != null) {
+        unawaited(_audioRecorderService.deleteChunk(path));
+      }
+      _isProcessingAudioChunk = false;
+    }
+  }
+
+  void _logStt(String message) {
+    final line = '[STT] $message';
+    debugPrint(line);
+    if (!mounted) return;
+    setState(() {
+      _sttDebugMessage = line;
+    });
+  }
+
+  Future<void> _sendTranscriptText({
+    required CallSession session,
+    required int sequence,
+    required String text,
+    required int startedAtMs,
+    required int endedAtMs,
+  }) async {
     final request = TranscriptAnalyzeRequest(
       chunkId: 'chunk-${sequence.toString().padLeft(3, '0')}',
       sequence: sequence,
       text: text,
-      startedAtMs: chunkIndex * 5000,
-      endedAtMs: (chunkIndex + 1) * 5000,
+      startedAtMs: startedAtMs,
+      endedAtMs: endedAtMs,
     );
 
     try {
@@ -322,9 +406,6 @@ class _CallingScreenState extends State<CallingScreen> {
       _latestKeywords = keywords;
       _latestPhishingType = phishingType;
       _lastAcceptedSequence = nextTranscriptSequence - 1;
-      if (_mockTranscriptIndex < _mockTranscriptTexts.length - 1) {
-        _mockTranscriptIndex += 1;
-      }
     });
   }
 
@@ -416,10 +497,10 @@ class _CallingScreenState extends State<CallingScreen> {
     if (level == RiskLevel.warning && !_shownWarningSheet) {
       _shownWarningSheet = true;
       if (_debugStopAtWarningBranch) {
-        _transcriptTimer?.cancel();
+        _stopTranscriptAnalysis();
         debugPrint(
           '[WARNING_BRANCH][PAUSE] '
-          'Mock transcript timer stopped after warning state for inspection.',
+          'STT transcript loop stopped after warning state for inspection.',
         );
       }
       _showSuspiciousSheet();
@@ -630,6 +711,38 @@ class _ControlGrid extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _SttDebugPanel extends StatelessWidget {
+  const _SttDebugPanel({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Text(
+        message,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
+      ),
     );
   }
 }
