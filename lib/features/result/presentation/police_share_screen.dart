@@ -12,6 +12,16 @@ import 'package:ssairen/features/result/widgets/result_stat_card.dart';
 class PoliceShareScreen extends StatelessWidget {
   const PoliceShareScreen({super.key});
 
+  /// 통화 화면에서 전달된 통화 지속 시간을 'mm:ss'로 포맷한다.
+  /// 전달값이 없으면 데모용 기본값을 쓴다.
+  String _callDurationOf(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is! Duration) return '04:21';
+    final minutes = args.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = args.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -44,9 +54,9 @@ class PoliceShareScreen extends StatelessWidget {
             const Spacer(),
             const _PrivacyNoticeCard(),
             const SizedBox(height: AppSpacing.lg),
-            const Row(
+            Row(
               children: [
-                Expanded(
+                const Expanded(
                   child: ResultStatCard(
                     icon: Icons.warning,
                     iconColor: AppColors.warningButton,
@@ -54,13 +64,13 @@ class PoliceShareScreen extends StatelessWidget {
                     value: '보이스피싱',
                   ),
                 ),
-                SizedBox(width: AppSpacing.lg),
+                const SizedBox(width: AppSpacing.lg),
                 Expanded(
                   child: ResultStatCard(
                     icon: Icons.watch_later,
                     iconColor: AppColors.brandBlue,
                     label: '통화 지속 시간',
-                    value: '04:21',
+                    value: _callDurationOf(context),
                   ),
                 ),
               ],
