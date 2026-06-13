@@ -35,6 +35,7 @@ class _CallingScreenState extends State<CallingScreen> {
   static const _debugStopAtWarningBranch = false;
   static const _audioChunkDuration = Duration(seconds: 5);
   static const _webSocketPingInterval = Duration(seconds: 30);
+  static const _sessionCompleteAckTimeout = Duration(seconds: 2);
   static const _hapticsChannel = MethodChannel('ssairen/haptics');
 
   final _analyzeApiService = AnalyzeApiService();
@@ -47,6 +48,7 @@ class _CallingScreenState extends State<CallingScreen> {
   Timer? _callDurationTimer;
   Timer? _webSocketPingTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
+  Completer<void>? _sessionCompleteAckCompleter;
   Duration _callElapsed = Duration.zero;
   int _riskPercent = 0;
   int _sttChunkSequence = 1;
@@ -66,6 +68,7 @@ class _CallingScreenState extends State<CallingScreen> {
   bool _isAnalysisQueueRunning = false;
   bool _isRiskSheetVisible = false;
   bool _callEnded = false;
+  bool _isEndingCall = false;
   CallSession? _callSession;
 
   @override
@@ -225,12 +228,37 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleEndCall() {
-    _endCallMonitoring();
+    unawaited(_finishCallAndPop());
+  }
+
+  Future<void> _finishCallAndPop() async {
+    await _endCallMonitoring(waitForSessionCompleteAck: true);
+    if (!mounted) return;
     debugPrint('Ending call session: ${_callSession?.sessionId ?? 'none'}');
     Navigator.of(context).maybePop();
   }
 
-  void _endCallMonitoring() {
+  Future<void> _finishCallAndOpenPoliceShare(NavigatorState navigator) async {
+    final callDuration = _callElapsed;
+    final phishingType = _latestPhishingType;
+
+    await _endCallMonitoring(waitForSessionCompleteAck: true);
+    if (!mounted) return;
+
+    navigator.pushReplacementNamed(
+      RoutePaths.policeShare,
+      arguments: PoliceShareArgs(
+        callDuration: callDuration,
+        phishingType: phishingType,
+      ),
+    );
+  }
+
+  Future<void> _endCallMonitoring({
+    bool waitForSessionCompleteAck = false,
+  }) async {
+    if (_isEndingCall) return;
+    _isEndingCall = true;
     if (_callEnded) return;
     _callEnded = true;
     _callDurationTimer?.cancel();
@@ -238,6 +266,12 @@ class _CallingScreenState extends State<CallingScreen> {
     _stopTranscriptAnalysis();
 
     final session = _callSession;
+    final shouldWaitForAck =
+        waitForSessionCompleteAck && _isWebSocketConnected && session != null;
+    if (shouldWaitForAck) {
+      _sessionCompleteAckCompleter = Completer<void>();
+    }
+
     if (_isWebSocketConnected && session != null) {
       _webSocketService.sendSessionComplete(
         sessionId: session.sessionId,
@@ -245,9 +279,21 @@ class _CallingScreenState extends State<CallingScreen> {
       );
     }
 
+    if (shouldWaitForAck) {
+      try {
+        await _sessionCompleteAckCompleter!.future.timeout(
+          _sessionCompleteAckTimeout,
+        );
+        debugPrint('[SESSION_COMPLETE][ACK_WAIT_DONE]');
+      } on TimeoutException {
+        debugPrint('[SESSION_COMPLETE][ACK_TIMEOUT]');
+      }
+    }
+
     _isWebSocketConnected = false;
     unawaited(_socketSubscription?.cancel());
     _socketSubscription = null;
+    _sessionCompleteAckCompleter = null;
   }
 
   String get _normalizedPhoneNumber {
@@ -717,7 +763,10 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _handleSocketEvent(SocketEvent event) {
-    if (!mounted || _callEnded) return;
+    if (!mounted) return;
+    if (_callEnded && event.eventType != SocketEventType.sessionCompleteAck) {
+      return;
+    }
 
     debugPrint('WebSocket event received: ${event.eventType.value}');
 
@@ -746,6 +795,10 @@ class _CallingScreenState extends State<CallingScreen> {
         _handleAnalysisRisk(data.riskScore);
       case SocketEventType.sessionCompleteAck:
         debugPrint('Session complete ack received.');
+        final completer = _sessionCompleteAckCompleter;
+        if (completer != null && !completer.isCompleted) {
+          completer.complete();
+        }
       case SocketEventType.analysisError:
         debugPrint('WebSocket analysis error data: ${event.data}');
       case SocketEventType.transcriptNack:
@@ -864,14 +917,7 @@ class _CallingScreenState extends State<CallingScreen> {
           onEndCall: () {
             final navigator = Navigator.of(context);
             navigator.pop();
-            _endCallMonitoring();
-            navigator.pushReplacementNamed(
-              RoutePaths.policeShare,
-              arguments: PoliceShareArgs(
-                callDuration: _callElapsed,
-                phishingType: _latestPhishingType,
-              ),
-            );
+            unawaited(_finishCallAndOpenPoliceShare(navigator));
           },
         );
       },
@@ -907,7 +953,7 @@ class _CallingScreenState extends State<CallingScreen> {
         callElapsed: _callElapsed,
         onEndCall: () {
           Navigator.of(context).pop();
-          _handleEndCall();
+          unawaited(_finishCallAndPop());
         },
       ),
     ).whenComplete(() {
