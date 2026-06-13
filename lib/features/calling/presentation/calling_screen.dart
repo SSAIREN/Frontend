@@ -12,6 +12,7 @@ import 'package:ssairen/features/calling/widgets/call_gradient_background.dart';
 import 'package:ssairen/features/calling/widgets/harmful_bottom_sheet.dart';
 import 'package:ssairen/features/calling/widgets/risk_monitor_panel.dart';
 import 'package:ssairen/features/calling/widgets/suspicious_bottom_sheet.dart';
+import 'package:ssairen/features/harmful/harmful_dashboard_args.dart';
 import 'package:ssairen/features/result/police_share_args.dart';
 import 'package:ssairen/models/call_session.dart';
 import 'package:ssairen/models/risk_result.dart';
@@ -67,6 +68,7 @@ class _CallingScreenState extends State<CallingScreen> {
   bool _isSttQueueRunning = false;
   bool _isAnalysisQueueRunning = false;
   bool _isRiskSheetVisible = false;
+  bool _isHarmfulDashboardOpen = false;
   bool _callEnded = false;
   bool _isEndingCall = false;
   CallSession? _callSession;
@@ -252,6 +254,30 @@ class _CallingScreenState extends State<CallingScreen> {
         phishingType: phishingType,
       ),
     );
+  }
+
+  void _openHarmfulDashboardFromSheet(NavigatorState navigator) {
+    final phoneNumber = _phoneNumber;
+    final callElapsed = _callElapsed;
+
+    setState(() {
+      _isHarmfulDashboardOpen = true;
+      _shownDangerSheet = true;
+      _isRiskSheetVisible = false;
+    });
+
+    navigator.pushNamed(
+      RoutePaths.harmfulDashboard,
+      arguments: HarmfulDashboardArgs(
+        phoneNumber: phoneNumber,
+        callElapsed: callElapsed,
+      ),
+    ).then((_) {
+      if (!mounted || _callEnded) return;
+      setState(() {
+        _isHarmfulDashboardOpen = false;
+      });
+    });
   }
 
   Future<void> _endCallMonitoring({
@@ -865,6 +891,14 @@ class _CallingScreenState extends State<CallingScreen> {
       return;
     }
 
+    if (_isHarmfulDashboardOpen) {
+      debugPrint(
+        '[RISK_BOTTOM_SHEET][SKIP] '
+        'harmful dashboard open, riskScore=$riskScore',
+      );
+      return;
+    }
+
     final level = RiskLevel.fromPercent(riskScore);
     if (_isRiskSheetVisible) {
       debugPrint(
@@ -951,6 +985,11 @@ class _CallingScreenState extends State<CallingScreen> {
         keywords: _dangerKeywords,
         phoneNumber: _phoneNumber,
         callElapsed: _callElapsed,
+        onRunPlan: () {
+          final navigator = Navigator.of(context);
+          navigator.pop();
+          _openHarmfulDashboardFromSheet(navigator);
+        },
         onEndCall: () {
           Navigator.of(context).pop();
           unawaited(_finishCallAndPop());
@@ -958,6 +997,11 @@ class _CallingScreenState extends State<CallingScreen> {
       ),
     ).whenComplete(() {
       if (_callEnded) return;
+      if (_isHarmfulDashboardOpen) {
+        _isRiskSheetVisible = false;
+        debugPrint('[DANGER_BOTTOM_SHEET][DISMISS_TO_DASHBOARD]');
+        return;
+      }
       _shownDangerSheet = false;
       _isRiskSheetVisible = false;
       debugPrint('[DANGER_BOTTOM_SHEET][DISMISS]');

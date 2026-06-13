@@ -11,6 +11,7 @@ class HarmfulBottomSheet extends StatelessWidget {
     required this.keywords,
     required this.phoneNumber,
     required this.callElapsed,
+    this.onRunPlan,
     this.onEndCall,
     super.key,
   });
@@ -20,6 +21,7 @@ class HarmfulBottomSheet extends StatelessWidget {
   final List<String> keywords;
   final String phoneNumber;
   final Duration callElapsed;
+  final VoidCallback? onRunPlan;
   final VoidCallback? onEndCall;
 
   @override
@@ -102,16 +104,17 @@ class HarmfulBottomSheet extends StatelessWidget {
               const _ResponsePlanCard(),
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed(
-                    RoutePaths.harmfulDashboard,
-                    arguments: HarmfulDashboardArgs(
-                      phoneNumber: phoneNumber,
-                      callElapsed: callElapsed,
-                    ),
-                  );
-                },
+                onPressed: onRunPlan ??
+                    () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushNamed(
+                        RoutePaths.harmfulDashboard,
+                        arguments: HarmfulDashboardArgs(
+                          phoneNumber: phoneNumber,
+                          callElapsed: callElapsed,
+                        ),
+                      );
+                    },
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.brandBlue,
                   foregroundColor: Colors.white,
