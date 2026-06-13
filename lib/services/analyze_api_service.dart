@@ -10,7 +10,7 @@ class AnalyzeApiService {
             Dio(
               BaseOptions(
                 baseUrl: ApiConfig.baseUrl,
-                connectTimeout: const Duration(seconds: 5),
+                connectTimeout: const Duration(seconds: 30),
                 receiveTimeout: const Duration(seconds: 60),
                 headers: const {
                   Headers.contentTypeHeader: Headers.jsonContentType,
@@ -35,6 +35,7 @@ class AnalyzeApiService {
         data: request.toJson(),
       );
     } on DioException catch (error) {
+      _logDioError('[CALL_SESSION][ERROR_RESPONSE]', error);
       throw StateError(_formatDioError('Call session request failed', error));
     }
 
@@ -43,6 +44,7 @@ class AnalyzeApiService {
       throw const FormatException('Call session response body is empty.');
     }
 
+    debugPrint('[CALL_SESSION][RESPONSE_BODY_RAW] $data');
     return CallSession.fromJson(data);
   }
 
@@ -97,6 +99,9 @@ class AnalyzeApiService {
   }
 
   void _logDioError(String title, DioException error) {
+    debugPrint('$title type=${error.type}');
+    debugPrint('$title message=${error.message}');
+    debugPrint('$title uri=${error.requestOptions.uri}');
     debugPrint('$title status=${error.response?.statusCode}');
     debugPrint('$title body\n${error.response?.data ?? 'null'}');
   }

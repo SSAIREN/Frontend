@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ssairen/core/config/api_config.dart';
 import 'package:ssairen/core/router/route_paths.dart';
 import 'package:ssairen/core/theme/app_colors.dart';
@@ -31,7 +32,9 @@ class _CallingScreenState extends State<CallingScreen> {
   String _phoneNumber = '01087654321';
   bool _initialized = false;
   static const _debugStopAtWarningBranch = false;
+  static const _debugSendHardcodedTranscriptOnly = false;
   static const _audioChunkDuration = Duration(seconds: 5);
+  static const _debugOverrideTranscriptText = '';
 
   final _analyzeApiService = AnalyzeApiService();
   final _audioRecorderService = AudioChunkRecorderService();
@@ -43,14 +46,13 @@ class _CallingScreenState extends State<CallingScreen> {
   Timer? _callDurationTimer;
   StreamSubscription<SocketEvent>? _socketSubscription;
   Duration _callElapsed = Duration.zero;
-  int _riskPercent = 12;
+  int _riskPercent = 0;
   int _sttChunkSequence = 1;
   int _nextTranscriptSequence = 1;
   int _lastAcceptedSequence = 0;
   String _latestAiSummary = '현재까지 위험 표현은 감지되지 않았습니다.';
   List<String> _latestKeywords = const [];
   String _latestPhishingType = 'NONE';
-  String _sttDebugMessage = 'STT 대기 중';
   bool _shownWarningSheet = false;
   bool _shownDangerSheet = false;
   bool _isWebSocketConnected = false;
@@ -97,48 +99,49 @@ class _CallingScreenState extends State<CallingScreen> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isCompact = constraints.maxHeight < 720;
+              final isTiny = constraints.maxHeight < 700;
+              final isCompact = constraints.maxHeight < 760;
+              final riskPanelHeight = isTiny ? 136.0 : (isCompact ? 150.0 : 170.0);
               final padding = EdgeInsets.fromLTRB(
                 21,
-                isCompact ? 10 : 16,
+                isTiny ? 6 : (isCompact ? 10 : 16),
                 21,
-                isCompact ? 16 : 24,
+                isTiny ? 10 : (isCompact ? 16 : 24),
               );
 
-              return SingleChildScrollView(
+              return Padding(
                 padding: padding,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - padding.vertical,
-                  ),
+                child: SizedBox(
+                  height: constraints.maxHeight - padding.vertical,
+                  width: double.infinity,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           _CallingTopBar(elapsed: _callElapsed),
-                          SizedBox(height: isCompact ? 24 : 38),
+                          SizedBox(height: isTiny ? 14 : (isCompact ? 24 : 38)),
                           _CallHeader(phoneNumber: _phoneNumber),
                         ],
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(height: isCompact ? 24 : 34),
-                          GestureDetector(
-                            onTap: _captureAndAnalyzeNextTranscript,
-                            child: RiskMonitorPanel(percent: _riskPercent),
-                          ),
-                          SizedBox(height: isCompact ? 10 : 14),
-                          _SttDebugPanel(message: _sttDebugMessage),
-                          SizedBox(height: isCompact ? 10 : 14),
-                          _ControlGrid(isCompact: isCompact),
-                          SizedBox(height: isCompact ? 24 : 34),
-                          _EndCallButton(
-                            onPressed: _handleEndCall,
-                          ),
-                        ],
+                      SizedBox(height: isTiny ? 16 : (isCompact ? 22 : 28)),
+                      GestureDetector(
+                        onTap: _captureAndAnalyzeNextTranscript,
+                        child: RiskMonitorPanel(
+                          percent: _riskPercent,
+                          height: riskPanelHeight,
+                        ),
+                      ),
+                      SizedBox(height: isTiny ? 36 : (isCompact ? 44 : 52)),
+                      _ControlGrid(isCompact: isCompact, isTiny: isTiny),
+                      const Spacer(),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: isTiny ? 8 : (isCompact ? 12 : 16),
+                        ),
+                        child: _EndCallButton(
+                          onPressed: _handleEndCall,
+                        ),
                       ),
                     ],
                   ),
@@ -150,7 +153,6 @@ class _CallingScreenState extends State<CallingScreen> {
       ),
     );
   }
-
   void _startCallDurationTimer() {
     _callDurationTimer?.cancel();
     _callDurationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -209,7 +211,11 @@ class _CallingScreenState extends State<CallingScreen> {
       _logStt(
         'SESSION READY: ${session.sessionId}, next=${session.nextTranscriptSequence}',
       );
-      _startTranscriptAnalysis();
+      if (_debugSendHardcodedTranscriptOnly) {
+        _sendHardcodedTranscriptForDebug(session);
+      } else {
+        _startTranscriptAnalysis();
+      }
     } catch (error, stackTrace) {
       _logStt('SESSION ERROR: $error');
       debugPrint('Failed to create call session: $error');
@@ -239,6 +245,21 @@ class _CallingScreenState extends State<CallingScreen> {
   void _startTranscriptAnalysis() {
     _shouldRunTranscriptLoop = true;
     unawaited(_runTranscriptLoop());
+  }
+
+  void _sendHardcodedTranscriptForDebug(CallSession session) {
+    _stopTranscriptAnalysis();
+    debugPrint(
+      '[REST_ANALYZE][DEBUG_HARDCODED_TEXT] '
+      'sessionId=${session.sessionId}, text="$_debugOverrideTranscriptText"',
+    );
+    _enqueueTranscriptAnalysis(
+      session: session,
+      sequence: _nextTranscriptSequence,
+      text: _debugOverrideTranscriptText,
+      startedAtMs: 0,
+      endedAtMs: _audioChunkDuration.inMilliseconds,
+    );
   }
 
   void _stopTranscriptAnalysis() {
@@ -350,7 +371,16 @@ class _CallingScreenState extends State<CallingScreen> {
         'TEXT: stt=$sttSequence, whisper=${whisperElapsedMs}ms, "$text"',
       );
 
-      if (text.isEmpty) {
+      final transcriptText = _debugOverrideTranscriptText.isNotEmpty
+          ? _debugOverrideTranscriptText
+          : text;
+      if (_debugOverrideTranscriptText.isNotEmpty) {
+        debugPrint(
+          '[STT][TEXT_OVERRIDE] stt=$sttSequence, text="$transcriptText"',
+        );
+      }
+
+      if (transcriptText.isEmpty) {
         _logStt('SKIP: empty text. stt=$sttSequence');
         return;
       }
@@ -360,7 +390,7 @@ class _CallingScreenState extends State<CallingScreen> {
       _enqueueTranscriptAnalysis(
         session: pending.session,
         sequence: analysisSequence,
-        text: text,
+        text: transcriptText,
         startedAtMs: chunkIndex * _audioChunkDuration.inMilliseconds,
         endedAtMs: (chunkIndex + 1) * _audioChunkDuration.inMilliseconds,
       );
@@ -375,14 +405,19 @@ class _CallingScreenState extends State<CallingScreen> {
   void _logStt(String message) {
     final line = '[STT] $message';
     debugPrint(line);
-    if (!mounted) return;
-    setState(() {
-      _sttDebugMessage = line;
-    });
   }
 
   int _elapsedMsSince(DateTime startedAt) {
     return DateTime.now().difference(startedAt).inMilliseconds;
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    final second = local.second.toString().padLeft(2, '0');
+    final millisecond = local.millisecond.toString().padLeft(3, '0');
+    return '$hour:$minute:$second.$millisecond';
   }
 
   void _enqueueTranscriptAnalysis({
@@ -430,7 +465,7 @@ class _CallingScreenState extends State<CallingScreen> {
     _isAnalysisQueueRunning = true;
 
     try {
-      while (mounted && _shouldRunTranscriptLoop && _analysisQueue.isNotEmpty) {
+      while (mounted && _analysisQueue.isNotEmpty) {
         final pending = _analysisQueue.removeFirst();
         await _sendQueuedTranscriptAnalysis(pending);
       }
@@ -446,30 +481,38 @@ class _CallingScreenState extends State<CallingScreen> {
     final request = pending.request;
     final sequence = request.sequence;
     final queueWaitMs = _elapsedMsSince(pending.queuedAt);
+    final analyzeStartedAt = DateTime.now();
 
     try {
       _logRestAnalyzeRequest(
         sessionId: session.sessionId,
         request: request,
+        requestedAt: analyzeStartedAt,
+        queueWaitMs: queueWaitMs,
       );
       _logStt(
-        'ANALYZE START: sequence=$sequence, pending=${_analysisQueue.length}, queueWait=${queueWaitMs}ms',
+        'ANALYZE START: sequence=$sequence, at=${_formatTime(analyzeStartedAt)}, pending=${_analysisQueue.length}, queueWait=${queueWaitMs}ms',
       );
-      final analyzeStartedAt = DateTime.now();
       final response = await _analyzeApiService.analyzeTranscript(
         sessionId: session.sessionId,
         request: request,
       );
+      final analyzeEndedAt = DateTime.now();
       final analyzeElapsedMs = _elapsedMsSince(analyzeStartedAt);
       if (!mounted) return;
 
-      _logRestAnalyzeResponse(response);
+      _logRestAnalyzeResponse(
+        response,
+        requestedAt: analyzeStartedAt,
+        respondedAt: analyzeEndedAt,
+        elapsedMs: analyzeElapsedMs,
+      );
       _logTranscriptSequenceSync(
         requestedSequence: sequence,
         response: response,
       );
       _logStt(
-        'ANALYZE DONE: sequence=$sequence, api=${analyzeElapsedMs}ms, score=${response.riskScore}, keywords=${response.keywords}',
+        'ANALYZE DONE: sequence=$sequence, at=${_formatTime(analyzeEndedAt)}, api=${analyzeElapsedMs}ms, score=${response.riskScore}, keywords=${response.keywords}',
       );
       _applyTranscriptProgress(
         riskScore: response.riskScore,
@@ -499,9 +542,13 @@ class _CallingScreenState extends State<CallingScreen> {
   void _logRestAnalyzeRequest({
     required String sessionId,
     required TranscriptAnalyzeRequest request,
+    required DateTime requestedAt,
+    required int queueWaitMs,
   }) {
     debugPrint(
       '[REST_ANALYZE][REQUEST] '
+      'requestedAt=${_formatTime(requestedAt)}, '
+      'queueWait=${queueWaitMs}ms, '
       'POST /api/mobile/call-sessions/$sessionId/transcripts/analyze '
       'chunkId=${request.chunkId}, '
       'sequence=${request.sequence}, '
@@ -516,9 +563,17 @@ class _CallingScreenState extends State<CallingScreen> {
     );
   }
 
-  void _logRestAnalyzeResponse(TranscriptAnalyzeResponse response) {
+  void _logRestAnalyzeResponse(
+    TranscriptAnalyzeResponse response, {
+    required DateTime requestedAt,
+    required DateTime respondedAt,
+    required int elapsedMs,
+  }) {
     debugPrint(
       '[REST_ANALYZE][RESPONSE] '
+      'requestedAt=${_formatTime(requestedAt)}, '
+      'respondedAt=${_formatTime(respondedAt)}, '
+      'api=${elapsedMs}ms, '
       'sessionId=${response.sessionId}, '
       'chunkId=${response.chunkId}, '
       'acceptedSequence=${response.acceptedSequence}, '
@@ -737,9 +792,10 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _showSuspiciousSheet() {
+    unawaited(_vibrateForRisk(RiskLevel.warning));
     debugPrint(
       '[WARNING_BOTTOM_SHEET][SHOW] '
-      'percent=$_riskPercent, '
+      'percent=${_riskPercent ?? 'none'}, '
       'aiSummary="$_latestAiSummary", '
       'keywords=$_latestKeywords, '
       'phishingType=$_latestPhishingType',
@@ -771,9 +827,10 @@ class _CallingScreenState extends State<CallingScreen> {
   }
 
   void _showHarmfulSheet() {
+    unawaited(_vibrateForRisk(RiskLevel.danger));
     debugPrint(
       '[DANGER_BOTTOM_SHEET][SHOW] '
-      'percent=$_riskPercent, '
+      'percent=${_riskPercent ?? 'none'}, '
       'aiSummary="$_dangerAiSummary", '
       'keywords=$_dangerKeywords, '
       'phishingType=$_latestPhishingType',
@@ -801,6 +858,16 @@ class _CallingScreenState extends State<CallingScreen> {
       _isRiskSheetVisible = false;
       debugPrint('[DANGER_BOTTOM_SHEET][DISMISS]');
     });
+  }
+
+  Future<void> _vibrateForRisk(RiskLevel level) async {
+    final count = level == RiskLevel.danger ? 2 : 1;
+    for (var i = 0; i < count; i += 1) {
+      await HapticFeedback.vibrate();
+      if (i < count - 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 160));
+      }
+    }
   }
 
   String get _dangerAiSummary {
@@ -941,13 +1008,17 @@ class _CallHeader extends StatelessWidget {
 }
 
 class _ControlGrid extends StatelessWidget {
-  const _ControlGrid({required this.isCompact});
+  const _ControlGrid({
+    required this.isCompact,
+    required this.isTiny,
+  });
 
   final bool isCompact;
+  final bool isTiny;
 
   @override
   Widget build(BuildContext context) {
-    final rowGap = isCompact ? 18.0 : 28.0;
+    final rowGap = isTiny ? 12.0 : (isCompact ? 18.0 : 28.0);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -988,38 +1059,6 @@ class _ControlGrid extends StatelessWidget {
           ],
         ),
       ],
-    );
-  }
-}
-
-class _SttDebugPanel extends StatelessWidget {
-  const _SttDebugPanel({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.16),
-        ),
-      ),
-      child: Text(
-        message,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          height: 1.25,
-        ),
-      ),
     );
   }
 }
