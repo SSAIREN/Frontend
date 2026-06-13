@@ -52,6 +52,9 @@ dependencies:
   # 권한 처리 (마이크, 위치)
   permission_handler: ^11.4.0
 
+  # 연락처 (가족 등록 시 기기 연락처에서 선택)
+  flutter_contacts: ^1.1.9
+
   # 로컬 저장 (FCM 토큰, 보호자 설정)
   shared_preferences: ^2.5.3
 
